@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Bone Crush — the daily ossuary puzzle</title>
+<meta name="description" content="Match skulls and bones in the catacomb. Everyone on Earth gets the identical board today — top the score before midnight resets it.">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#0c0a10; touch-action:none;
+              font-family:'Segoe UI', system-ui, sans-serif; user-select:none; -webkit-user-select:none; }
+  #game { display:block; margin:0 auto; touch-action:none; }
+  .ui { position:fixed; color:#e8dcc0; text-shadow:0 0 12px #ff8a00, 0 0 26px #c93400; z-index:5; }
+  #hud { top:10px; left:16px; font-size:clamp(16px,2.6vw,24px); font-weight:700; }
+  #moves { top:10px; right:64px; font-size:clamp(16px,2.6vw,24px); font-weight:700; }
+  #mute { top:8px; right:12px; font-size:clamp(18px,2.6vw,24px); cursor:pointer; opacity:.85; padding:4px 8px;
+          background:rgba(20,16,14,.5); border:1px solid rgba(230,200,140,.3); border-radius:10px; }
+  #overlay { inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+             background:radial-gradient(ellipse at center, rgba(18,12,16,.6) 0%, rgba(6,4,7,.92) 100%);
+             text-align:center; padding:20px; }
+  #overlay h1 { font-size:clamp(34px,8vw,72px); font-weight:900; letter-spacing:4px; color:#f2e7cd;
+                text-shadow:0 0 18px #ff8a00, 0 0 60px #d13c00; margin-bottom:6px; }
+  #overlay .tag { font-size:clamp(12px,2.2vw,17px); color:#cbb488; margin-bottom:20px; }
+  #overlay .big { font-size:clamp(18px,3.6vw,30px); margin:4px 0; font-weight:700; }
+  #overlay .stats { display:flex; gap:22px; margin:12px 0 6px; flex-wrap:wrap; justify-content:center; }
+  #overlay .stat { background:rgba(30,24,20,.6); border:1px solid rgba(220,190,130,.25); border-radius:14px;
+                   padding:8px 18px; min-width:100px; }
+  #overlay .stat .v { font-size:clamp(20px,4vw,32px); font-weight:800; color:#f6ecd7; }
+  #overlay .stat .l { font-size:clamp(9px,1.6vw,12px); color:#c9a86a; letter-spacing:2px; text-transform:uppercase; }
+  #overlay .go { margin-top:16px; font-size:clamp(15px,2.8vw,22px); padding:12px 40px; border-radius:40px;
+                 background:linear-gradient(180deg,#ff9a2a,#c22e00); color:#fff; border:none; cursor:pointer;
+                 font-weight:800; letter-spacing:2px; box-shadow:0 0 30px rgba(255,110,0,.55); }
+  #overlay .share { margin-top:10px; font-size:clamp(11px,2vw,15px); padding:8px 24px; border-radius:30px;
+                    background:rgba(34,26,22,.65); color:#eed9a8; border:1px solid rgba(230,190,120,.4); cursor:pointer; }
+  #overlay .hint { margin-top:14px; font-size:clamp(10px,1.9vw,13px); color:#9b7f52; }
+  #overlay .daily { margin-top:6px; font-size:clamp(10px,1.9vw,13px); color:#d9a75f; }
+  #toast { bottom:8vh; left:50%; transform:translateX(-50%); background:rgba(30,22,18,.9); padding:9px 20px;
+           border-radius:22px; border:1px solid rgba(230,190,120,.5); font-size:13px; opacity:0; transition:opacity .3s; }
+  .hidden { display:none !important; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div class="ui" id="hud"></div>
+<div class="ui" id="moves"></div>
+<div class="ui" id="mute">🔊</div>
+<div class="ui" id="toast"></div>
+<div class="ui" id="overlay">
+  <h1>💀 BONE CRUSH</h1>
+  <div class="tag">Match the remains. Everyone on Earth digs the <b>same catacomb board</b> today.</div>
+  <div id="resultBlock" class="hidden"><div class="big" id="scoreLine"></div></div>
+  <div class="stats">
+    <div class="stat"><div class="v" id="stBest">0</div><div class="l">Today's best</div></div>
+    <div class="stat"><div class="v" id="stAll">0</div><div class="l">All-time</div></div>
+    <div class="stat"><div class="v" id="stStreak">0🔥</div><div class="l">Day streak</div></div>
+  </div>
+  <button class="go" id="btnGo">DIG IN</button>
+  <button class="share hidden" id="btnShare">⚡ Challenge a friend</button>
+  <div class="hint">Swap two relics to match 3+ · 30 moves · chains multiply the score</div>
+  <div class="daily" id="daily"></div>
+</div>
+<script>
+"use strict";
+/* BONE CRUSH — daily-seeded match-3. No backend; same board worldwide per UTC day. */
+const N = 8, TYPES = 5, MOVES0 = 30;
+const cv = document.getElementById('game'), cx = cv.getContext('2d');
+let CELL = 64, PAD = 0, TOPPAD = 56, DPR = 1;
+function resize(){
+  DPR = Math.min(devicePixelRatio || 1, 1.5);
+  const s = Math.min(innerWidth, innerHeight - 56);
+  CELL = Math.floor(s / N);
+  cv.width  = CELL * N * DPR; cv.height = CELL * N * DPR;
+  cv.style.width = CELL*N + 'px'; cv.style.height = CELL*N + 'px';
+  cv.style.marginTop = Math.max(48, (innerHeight - CELL*N) / 2) + 'px';
+  cx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+addEventListener('resize', ()=>{ resize(); });
+
+function utcDayKey(){ const d = new Date(); return d.getUTCFullYear()*10000 + (d.getUTCMonth()+1)*100 + d.getUTCDate(); }
+function mulberry32(a){ return function(){ a|=0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a>>>15, 1 | a);
+  t = t + Math.imul(t ^ t>>>7, 61 | t) ^ t; return ((t ^ t>>>14) >>> 0) / 4294967296; }; }
+function msToReset(){ const n = new Date(); return Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),n.getUTCDate()+1) - n.getTime(); }
+function adjacentDay(a, b){ if (!a) return false;
+  const pa = Date.UTC(Math.floor(a/10000), Math.floor(a/100)%100-1, a%100);
+  const pb = Date.UTC(Math.floor(b/10000), Math.floor(b/100)%100-1, b%100);
+  return pb - pa === 86400000; }
+const store = {
+  get k(){ return 'bonecrush_' + utcDayKey(); },
+  load(){ return { all:+localStorage.bc_all||0, today:+localStorage[this.k]||0 }; },
+  save(sc){ const dk = utcDayKey();
+    if (sc > (+localStorage[this.k]||0)) localStorage[this.k] = sc;
+    if (sc > (+localStorage.bc_all||0)) localStorage.bc_all = sc;
+    const last = +localStorage.bc_lastday||0;
+    if (last !== dk){ localStorage.bc_streak = adjacentDay(last,dk) ? (+localStorage.bc_streak||0)+1 : 1;
+      localStorage.bc_lastday = dk; } }
+};
+
+/* audio: bone clacks + crumble */
+let AC = null, muted = localStorage.bc_mute === '1', noiseBuf = null;
+function ac(){ if (!AC) AC = new (window.AudioContext||window.webkitAudioContext)(); return AC; }
+function beep(f,d,t,v,sl){ if (muted) return; try{ const a=ac(),o=a.createOscillator(),g=a.createGain();
+  o.type=t||'sine'; o.frequency.value=f; if(sl)o.frequency.exponentialRampToValueAtTime(sl,a.currentTime+d);
+  g.gain.value=v||.08; g.gain.exponentialRampToValueAtTime(.0001,a.currentTime+d);
+  o.connect(g); g.connect(a.destination); o.start(); o.stop(a.currentTime+d);}catch(e){} }
+function noise(d,type,f0,f1,v){ if (muted) return; try{ const a=ac();
+  if(!noiseBuf){ noiseBuf=a.createBuffer(1,a.sampleRate,a.sampleRate);
+    const b=noiseBuf.getChannelData(0); for(let i=0;i<b.length;i++)b[i]=Math.random()*2-1; }
+  const s=a.createBufferSource(); s.buffer=noiseBuf; s.loop=true;
+  const f=a.createBiquadFilter(); f.type=type; f.frequency.value=f0;
+  if(f1)f.frequency.exponentialRampToValueAtTime(f1,a.currentTime+d);
+  const g=a.createGain(); g.gain.value=v; g.gain.exponentialRampToValueAtTime(.0001,a.currentTime+d);
+  s.connect(f); f.connect(g); g.connect(a.destination); s.start(); s.stop(a.currentTime+d);}catch(e){} }
+const sfx = {
+  swap(){ beep(300,.06,'triangle',.05,380); },
+  bad(){ beep(140,.15,'sawtooth',.06,90); },
+  crush(n){ noise(.25,'lowpass',1600,300,.28); beep(420+n*60,.12,'sine',.08,650+n*60); },
+  chain(c){ [660,830,990].slice(0,Math.min(3,c)).forEach((f,i)=>setTimeout(()=>beep(f,.12,'sine',.09),i*70)); },
+  over(){ noise(.8,'lowpass',900,80,.4); beep(90,.7,'sine',.2,30); }
+};
+const muteBtn = document.getElementById('mute');
+muteBtn.onclick = (e)=>{ e.stopPropagation(); muted=!muted; localStorage.bc_mute=muted?'1':'0'; drawMute(); };
+function drawMute(){ muteBtn.textContent = muted ? '🔇':'🔊'; } drawMute();
+
+/* pieces: 0 skull, 1 crossbones, 2 rib, 3 femur, 4 candle-eye gem */
+const COLS = ['#efe6cf', '#c9b48a', '#9fb2c9', '#d98a5f', '#8fd07a'];
+function drawPiece(t, x, y, r, wob){
+  cx.save(); cx.translate(x, y); if (wob) cx.rotate(Math.sin(wob)*.08);
+  cx.fillStyle = COLS[t]; cx.strokeStyle = 'rgba(0,0,0,.55)'; cx.lineWidth = 2;
+  if (t === 0){ // skull
+    cx.beginPath(); cx.arc(0, -r*.1, r*.72, 0, 7); cx.fill();
+    cx.fillRect(-r*.4, r*.28, r*.8, r*.42);
+    cx.fillStyle = '#1a1218';
+    cx.beginPath(); cx.arc(-r*.28, -r*.15, r*.2, 0, 7); cx.fill();
+    cx.beginPath(); cx.arc(r*.28, -r*.15, r*.2, 0, 7); cx.fill();
+    cx.fillRect(-r*.07, r*.05, r*.14, r*.2);
+    cx.fillRect(-r*.3, r*.42, r*.12, r*.2); cx.fillRect(-r*.06, r*.42, r*.12, r*.2); cx.fillRect(r*.18, r*.42, r*.12, r*.2);
+  } else if (t === 1){ // crossbones
+    for (const a of [-.785, .785]){
+      cx.save(); cx.rotate(a);
+      cx.fillRect(-r*.72, -r*.1, r*1.44, r*.2);
+      for (const e of [-1,1]){ cx.beginPath(); cx.arc(e*r*.72, -r*.08, r*.14, 0, 7);
+        cx.arc(e*r*.72, r*.08, r*.14, 0, 7); cx.fill(); }
+      cx.restore();
+    }
+  } else if (t === 2){ // ribcage
+    cx.fillRect(-r*.08, -r*.7, r*.16, r*1.4);
+    for (let i = 0; i < 4; i++){ const yy = -r*.5 + i*r*.32;
+      cx.beginPath(); cx.ellipse(0, yy, r*.55, r*.12, 0, 0, 7); cx.fill(); }
+  } else if (t === 3){ // femur
+    cx.save(); cx.rotate(.6);
+    cx.fillRect(-r*.6, -r*.12, r*1.2, r*.24);
+    for (const e of [-1,1]){ cx.beginPath(); cx.arc(e*r*.6, -r*.1, r*.17, 0, 7);
+      cx.arc(e*r*.6, r*.1, r*.17, 0, 7); cx.fill(); }
+    cx.restore();
+  } else { // ember gem (eye)
+    cx.beginPath(); for (let i = 0; i < 6; i++){ const a = i*Math.PI/3;
+      cx[i?'lineTo':'moveTo'](Math.cos(a)*r*.65, Math.sin(a)*r*.65); }
+    cx.closePath(); cx.fill();
+    const g = cx.createRadialGradient(0,0,0, 0,0,r*.4);
+    g.addColorStop(0,'#fff3c0'); g.addColorStop(1,'rgba(255,120,20,.15)');
+    cx.fillStyle = g; cx.beginPath(); cx.arc(0, 0, r*.4, 0, 7); cx.fill();
+  }
+  cx.restore();
+}
+
+/* board state */
+let grid = [], sel = null, score = 0, moves = 0, busy = false, playing = false;
+let anims = [], parts = [], t0 = 0;
+function rngBoard(){
+  const r = mulberry32(utcDayKey() ^ 0xB0E5);
+  const g = [];
+  for (let y = 0; y < N; y++){ g.push([]);
+    for (let x = 0; x < N; x++){
+      let t;
+      do { t = Math.floor(r()*TYPES); }
+      while ((x >= 2 && g[y][x-1] === t && g[y][x-2] === t) ||
+             (y >= 2 && g[y-1][x] === t && g[y-2][x] === t));
+      g[y].push(t);
+    } }
+  return g;
+}
+function findMatches(g){
+  const m = new Set();
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++){
+    const t = g[y][x]; if (t < 0) continue;
+    if (x <= N-3 && g[y][x+1] === t && g[y][x+2] === t){ let k = x; while (k < N && g[y][k] === t){ m.add(y*N+k); k++; } }
+    if (y <= N-3 && g[y+1][x] === t && g[y+2][x] === t){ let k = y; while (k < N && g[k][x] === t){ m.add(k*N+x); k++; } }
+  }
+  return m;
+}
+function anyMovePossible(g){
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++)
+    for (const [dx,dy] of [[1,0],[0,1]]){
+      const x2 = x+dx, y2 = y+dy; if (x2 >= N || y2 >= N) continue;
+      [g[y][x], g[y2][x2]] = [g[y2][x2], g[y][x]];
+      const ok = findMatches(g).size > 0;
+      [g[y][x], g[y2][x2]] = [g[y2][x2], g[y][x]];
+      if (ok) return true;
+    }
+  return false;
+}
+function burst(x, y, col){
+  for (let i = 0; i < 10; i++){ const a = Math.random()*7, v = 60 + Math.random()*160;
+    parts.push({ x, y, vx:Math.cos(a)*v, vy:Math.sin(a)*v - 60, t:0, life:.5+Math.random()*.4, col }); }
+}
+async function resolveBoard(chain){
+  const m = findMatches(grid);
+  if (m.size === 0){
+    if (!anyMovePossible(grid)){ showToast('☠ No moves left — bones reshuffle'); grid = rngBoard(); }
+    busy = false; if (moves <= 0) gameOver(); return;
+  }
+  const gain = m.size * 10 * chain;
+  score += gain; hudDraw();
+  sfx.crush(m.size); if (chain > 1) sfx.chain(chain);
+  for (const i of m){ const x = i%N, y = (i-x)/N;
+    burst(x*CELL + CELL/2, y*CELL + CELL/2, COLS[grid[y][x]]); grid[y][x] = -1; }
+  await sleep(220);
+  // gravity
+  const r = mulberry32((utcDayKey()^0xFA11) + score);   // refills deterministic per day+score
+  for (let x = 0; x < N; x++){
+    let write = N-1;
+    for (let y = N-1; y >= 0; y--) if (grid[y][x] >= 0) grid[write--][x] = grid[y][x];
+    for (let y = write; y >= 0; y--) grid[y][x] = Math.floor(r()*TYPES);
+  }
+  await sleep(160);
+  resolveBoard(chain + 1);
+}
+function sleep(ms){ return new Promise(res => setTimeout(res, ms)); }
+
+/* input: click/drag two adjacent cells */
+function cellAt(e){
+  const r = cv.getBoundingClientRect();
+  const p = e.touches ? e.touches[0] : e;
+  const x = Math.floor((p.clientX - r.left) / CELL), y = Math.floor((p.clientY - r.top) / CELL);
+  return (x >= 0 && x < N && y >= 0 && y < N) ? {x, y} : null;
+}
+async function trySwap(a, b){
+  if (busy || Math.abs(a.x-b.x) + Math.abs(a.y-b.y) !== 1) { sel = null; return; }
+  busy = true; sel = null;
+  [grid[a.y][a.x], grid[b.y][b.x]] = [grid[b.y][b.x], grid[a.y][a.x]];
+  sfx.swap();
+  await sleep(120);
+  if (findMatches(grid).size === 0){
+    [grid[a.y][a.x], grid[b.y][b.x]] = [grid[b.y][b.x], grid[a.y][a.x]];
+    sfx.bad(); busy = false; return;
+  }
+  moves--; hudDraw();
+  resolveBoard(1);
+}
+let dragStart = null;
+cv.addEventListener('pointerdown', e => { if (!playing || busy) return;
+  const c = cellAt(e); if (!c) return;
+  if (sel && (Math.abs(sel.x-c.x)+Math.abs(sel.y-c.y) === 1)){ trySwap(sel, c); }
+  else { sel = c; dragStart = c; }
+});
+cv.addEventListener('pointermove', e => { if (!playing || busy || !dragStart) return;
+  const c = cellAt(e); if (!c || (c.x === dragStart.x && c.y === dragStart.y)) return;
+  const dx = c.x - dragStart.x, dy = c.y - dragStart.y;
+  const step = Math.abs(dx) > Math.abs(dy) ? {x:dragStart.x+Math.sign(dx), y:dragStart.y} : {x:dragStart.x, y:dragStart.y+Math.sign(dy)};
+  trySwap(dragStart, step); dragStart = null;
+});
+cv.addEventListener('pointerup', ()=>{ dragStart = null; });
+
+/* flow */
+const overlay = document.getElementById('overlay'), btnGo = document.getElementById('btnGo'),
+      btnShare = document.getElementById('btnShare'), hud = document.getElementById('hud'),
+      movesEl = document.getElementById('moves'), toast = document.getElementById('toast'),
+      scoreLine = document.getElementById('scoreLine'), resultBlock = document.getElementById('resultBlock'),
+      dailyEl = document.getElementById('daily');
+function hudDraw(){ hud.textContent = '💀 ' + score; movesEl.textContent = '⛏ ' + moves; }
+function showToast(t){ toast.textContent = t; toast.style.opacity = 1; setTimeout(()=>toast.style.opacity = 0, 2000); }
+function fmtReset(){ const ms = msToReset(); return `New board in ${Math.floor(ms/3.6e6)}h ${Math.floor(ms%3.6e6/6e4)}m`; }
+function refreshMenu(done){
+  const st = store.load();
+  document.getElementById('stBest').textContent = st.today;
+  document.getElementById('stAll').textContent = st.all;
+  document.getElementById('stStreak').textContent = (localStorage.bc_streak||0) + '🔥';
+  dailyEl.textContent = fmtReset();
+  if (done){
+    resultBlock.classList.remove('hidden'); btnShare.classList.remove('hidden');
+    const isBest = score >= st.today && score > 0;
+    scoreLine.innerHTML = `You crushed <span style="color:#fff;font-size:1.3em">${score}</span>` +
+      (isBest ? " — 🏆 today's best!" : ` · today's best ${st.today}`);
+    btnGo.textContent = 'DIG AGAIN';
+  }
+}
+function start(){
+  try { const a = ac(); a && a.resume && a.resume(); } catch(e){}
+  grid = rngBoard(); score = 0; moves = MOVES0; sel = null; busy = false; playing = true;
+  overlay.classList.add('hidden'); hudDraw();
+}
+function gameOver(){
+  playing = false; sfx.over(); store.save(score);
+  setTimeout(()=>{ overlay.classList.remove('hidden'); refreshMenu(true); }, 700);
+}
+['click','touchend'].forEach(ev => btnGo.addEventListener(ev, e => { e.stopPropagation(); e.preventDefault(); start(); }));
+btnShare.onclick = async e => { e.stopPropagation();
+  const txt = `💀 I crushed ${score} on today's Bone Crush board — everyone digs the SAME catacomb today. Beat me: ${location.href.split('?')[0]}`;
+  try { if (navigator.share) await navigator.share({ text: txt });
+        else { await navigator.clipboard.writeText(txt); showToast('Challenge copied'); } } catch(err){}
+};
+window.onerror = m => showToast('⚠ ' + m);
+
+/* render */
+function render(t){
+  requestAnimationFrame(render);
+  const dt = Math.min(.05, (t - t0)/1000 || .016); t0 = t;
+  cx.clearRect(0, 0, cv.width, cv.height);
+  // stone cells
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++){
+    cx.fillStyle = (x+y) % 2 ? '#1b1520' : '#211a26';
+    cx.fillRect(x*CELL+1, y*CELL+1, CELL-2, CELL-2);
+  }
+  if (sel){ cx.strokeStyle = '#ffcf7d'; cx.lineWidth = 3;
+    cx.strokeRect(sel.x*CELL+2, sel.y*CELL+2, CELL-4, CELL-4); }
+  if (grid.length)
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++)
+      if (grid[y][x] >= 0)
+        drawPiece(grid[y][x], x*CELL + CELL/2, y*CELL + CELL/2, CELL*.42,
+                  sel && sel.x === x && sel.y === y ? t*.02 : 0);
+  for (let i = parts.length-1; i >= 0; i--){ const p = parts[i]; p.t += dt;
+    p.x += p.vx*dt; p.y += p.vy*dt; p.vy += 500*dt;
+    if (p.t > p.life){ parts.splice(i,1); continue; }
+    cx.globalAlpha = 1 - p.t/p.life; cx.fillStyle = p.col;
+    cx.fillRect(p.x-3, p.y-3, 6, 6); cx.globalAlpha = 1;
+  }
+}
+window.__dbg = () => ({ playing, score, moves, busy });
+if (location.search.includes('test')){
+  setTimeout(()=>{ start();
+    (async function bot(){
+      while (moves > 0){
+        if (!busy){
+          outer:
+          for (let y = 0; y < N; y++) for (let x = 0; x < N; x++)
+            for (const [dx,dy] of [[1,0],[0,1]]){
+              const x2 = x+dx, y2 = y+dy; if (x2 >= N || y2 >= N) continue;
+              [grid[y][x], grid[y2][x2]] = [grid[y2][x2], grid[y][x]];
+              const ok = findMatches(grid).size > 0;
+              [grid[y][x], grid[y2][x2]] = [grid[y2][x2], grid[y][x]];
+              if (ok){ await trySwap({x,y},{x:x2,y:y2}); break outer; }
+            }
+        }
+        await sleep(400);
+      }
+    })();
+  }, 500);
+}
+resize();
+refreshMenu(false);
+setInterval(()=>{ if (!playing) dailyEl.textContent = fmtReset(); }, 30000);
+requestAnimationFrame(render);
+</script>
+</body>
+</html>
