@@ -367,10 +367,13 @@ function render(t){
   }
 }
 window.__dbg = () => ({ playing, score, moves, busy });
+let bcPilot = true;
 if (location.search.includes('test')){
+  ['pointerdown','keydown'].forEach(ev => addEventListener(ev, e => {
+    if (e.isTrusted && bcPilot){ bcPilot = false; showToast('🎮 You have control'); } }, true));
   setTimeout(()=>{ start();
     (async function bot(){
-      while (moves > 0){
+      while (moves > 0 && bcPilot){
         if (!busy){
           outer:
           for (let y = 0; y < N; y++) for (let x = 0; x < N; x++)
