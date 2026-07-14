@@ -11,15 +11,56 @@
               font-family:'Segoe UI', system-ui, sans-serif; user-select:none; -webkit-user-select:none; }
   #game { display:block; margin:0 auto; touch-action:none; }
   .ui { position:fixed; color:#e8dcc0; text-shadow:0 0 12px #ff8a00, 0 0 26px #c93400; z-index:5; }
-  #hud { top:10px; left:16px; font-size:clamp(16px,2.6vw,24px); font-weight:700; }
-  #moves { top:10px; right:64px; font-size:clamp(16px,2.6vw,24px); font-weight:700; }
+  /* Score readout: BIG, animated (scale-pop + color-flash + count-up driven from render loop). */
+  #hud { top:8px; left:16px; font-size:clamp(26px,5.4vw,54px); font-weight:900; letter-spacing:1px;
+         transform-origin:top left; will-change:transform; line-height:1; }
+  #moves { top:16px; right:64px; font-size:clamp(18px,3vw,30px); font-weight:800; }
+  /* Left-side info panel (grim ossuary legend). Sits in the left margin on wide screens,
+     collapsible overlay on narrow ones so the board always fits. */
+  #infoToggle { top:70px; left:12px; font-size:clamp(18px,2.6vw,24px); cursor:pointer; opacity:.85;
+                padding:4px 9px; background:rgba(20,16,14,.55); border:1px solid rgba(230,200,140,.3);
+                border-radius:10px; z-index:6; }
+  #infoPanel { top:112px; left:12px; width:212px; max-height:calc(100vh - 128px); overflow-y:auto;
+               padding:12px 12px 14px; z-index:6; border-radius:14px;
+               background:linear-gradient(180deg, rgba(28,20,14,.94), rgba(14,10,7,.96));
+               border:1px solid rgba(196,150,86,.42);
+               box-shadow:0 8px 30px rgba(0,0,0,.6), inset 0 0 26px rgba(120,70,20,.18);
+               color:#e5d4ad; font-size:12px; text-shadow:0 1px 2px #000;
+               scrollbar-width:thin; scrollbar-color:rgba(196,150,86,.5) transparent; }
+  #infoPanel::-webkit-scrollbar { width:7px; }
+  #infoPanel::-webkit-scrollbar-thumb { background:rgba(196,150,86,.5); border-radius:6px; }
+  #infoPanel h3 { font-size:12px; letter-spacing:2px; text-transform:uppercase; color:#ffb454;
+                  margin:12px 0 6px; border-bottom:1px solid rgba(196,150,86,.28); padding-bottom:3px;
+                  text-shadow:0 0 10px rgba(255,138,0,.4); }
+  #infoPanel h3:first-child { margin-top:0; }
+  #infoPanel .row { display:flex; align-items:center; gap:8px; margin:4px 0; line-height:1.25; }
+  #infoPanel .row img { width:26px; height:26px; flex:0 0 26px; object-fit:contain;
+                        filter:drop-shadow(0 1px 2px rgba(0,0,0,.7)); }
+  #infoPanel .row .nm { color:#f4e6c4; font-weight:700; }
+  #infoPanel .row .ds { color:#c3a877; }
+  #infoPanel .row .pts { margin-left:auto; color:#ffd24a; font-weight:800; white-space:nowrap; }
+  #infoPanel ul { list-style:none; margin:2px 0 0; padding:0; }
+  #infoPanel ul li { position:relative; padding:3px 0 3px 14px; color:#d8c39a; line-height:1.3; }
+  #infoPanel ul li::before { content:'☠'; position:absolute; left:0; top:2px; color:#a5763a; font-size:10px; }
   #mute { top:8px; right:12px; font-size:clamp(18px,2.6vw,24px); cursor:pointer; opacity:.85; padding:4px 8px;
           background:rgba(20,16,14,.5); border:1px solid rgba(230,200,140,.3); border-radius:10px; }
+  #bug { top:52px; right:12px; font-size:clamp(18px,2.6vw,24px); cursor:pointer; opacity:.6; padding:4px 8px;
+         background:rgba(20,16,14,.5); border:1px solid rgba(230,200,140,.3); border-radius:10px; }
   #overlay { inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
              background:radial-gradient(ellipse at center, rgba(18,12,16,.6) 0%, rgba(6,4,7,.92) 100%);
              text-align:center; padding:20px; }
-  #overlay h1 { font-size:clamp(34px,8vw,72px); font-weight:900; letter-spacing:4px; color:#f2e7cd;
-                text-shadow:0 0 18px #ff8a00, 0 0 60px #d13c00; margin-bottom:6px; }
+  /* Official BONE CRUSH title logo (Eric's painted banner). Master copy: art_src/title_logo.png
+     (5230x768) — THIS is the game logo for the splash, store pages, adverts and promo art.
+     assets/title_logo.jpg is the web-optimized copy. Subtle idle float/glow, readable at any width. */
+  #overlay h1.logo { display:flex; align-items:center; justify-content:center;
+                     margin-bottom:8px; line-height:1;
+                     animation:logoFloat 5s ease-in-out infinite, logoEmber 3s ease-in-out infinite; }
+  #overlay h1.logo img { width:min(92vw, 640px); height:auto; border-radius:10px;
+                     box-shadow:0 4px 22px rgba(0,0,0,.65), 0 0 34px rgba(255,138,0,.35);
+                     border:1px solid rgba(230,190,120,.35); }
+  @keyframes logoFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
+  @keyframes logoEmber { 0%,100%{filter:brightness(1)} 50%{filter:brightness(1.13)} }
+  @media (prefers-reduced-motion:reduce){ #overlay h1.logo{animation:none} }
   #overlay .tag { font-size:clamp(12px,2.2vw,17px); color:#cbb488; margin-bottom:20px; }
   #overlay .big { font-size:clamp(18px,3.6vw,30px); margin:4px 0; font-weight:700; }
   #overlay .stats { display:flex; gap:22px; margin:12px 0 6px; flex-wrap:wrap; justify-content:center; }
@@ -44,9 +85,21 @@
 <div class="ui" id="hud"></div>
 <div class="ui" id="moves"></div>
 <div class="ui" id="mute">🔊</div>
+<div class="ui" id="bug" title="Download bug report (F8)">🐞</div>
+<div class="ui" id="infoToggle" title="Ossuary legend — pieces, powers & rules">📖</div>
+<div class="ui hidden" id="infoPanel"></div>
 <div class="ui" id="toast"></div>
+
+<!-- PLATFORM_SDK -->
+<script>
+/* Platform adapter: no-op locally; the build script injects a real PSDK
+   (CrazyGames SDK v3 / Poki SDK v2) above this line for store builds. */
+window.PSDK = window.PSDK || { ready: Promise.resolve(), loaded(){}, start(){}, stop(){},
+                               midgame(){ return Promise.resolve(); } };
+</script>
+
 <div class="ui" id="overlay">
-  <h1>💀 BONE CRUSH</h1>
+  <h1 class="logo"><img src="assets/title_logo.jpg" alt="BONE CRUSH — a grim match-3 adventure"></h1>
   <div class="tag">Match the remains. Everyone on Earth digs the <b>same catacomb board</b> today.</div>
   <div id="resultBlock" class="hidden"><div class="big" id="scoreLine"></div></div>
   <div class="stats">
@@ -62,7 +115,7 @@
 <script>
 "use strict";
 /* BONE CRUSH — daily-seeded match-3. No backend; same board worldwide per UTC day. */
-const N = 8, TYPES = 5, MOVES0 = 30;
+const N = 8, TYPES = 8, MOVES0 = 30;   // 8 normal types (asset drop 02 added cat/cauldron/heart)
 const cv = document.getElementById('game'), cx = cv.getContext('2d');
 let CELL = 64, PAD = 0, TOPPAD = 56, DPR = 1;
 function resize(){
@@ -73,6 +126,7 @@ function resize(){
   cv.style.width = CELL*N + 'px'; cv.style.height = CELL*N + 'px';
   cv.style.marginTop = Math.max(48, (innerHeight - CELL*N) / 2) + 'px';
   cx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  if (typeof autoInfo === 'function') autoInfo();
 }
 addEventListener('resize', ()=>{ resize(); });
 
@@ -102,32 +156,160 @@ function beep(f,d,t,v,sl){ if (muted) return; try{ const a=ac(),o=a.createOscill
   o.type=t||'sine'; o.frequency.value=f; if(sl)o.frequency.exponentialRampToValueAtTime(sl,a.currentTime+d);
   g.gain.value=v||.08; g.gain.exponentialRampToValueAtTime(.0001,a.currentTime+d);
   o.connect(g); g.connect(a.destination); o.start(); o.stop(a.currentTime+d);}catch(e){} }
-function noise(d,type,f0,f1,v){ if (muted) return; try{ const a=ac();
+function noise(d,type,f0,f1,v,q){ if (muted) return; try{ const a=ac();
   if(!noiseBuf){ noiseBuf=a.createBuffer(1,a.sampleRate,a.sampleRate);
     const b=noiseBuf.getChannelData(0); for(let i=0;i<b.length;i++)b[i]=Math.random()*2-1; }
   const s=a.createBufferSource(); s.buffer=noiseBuf; s.loop=true;
-  const f=a.createBiquadFilter(); f.type=type; f.frequency.value=f0;
+  const f=a.createBiquadFilter(); f.type=type; f.frequency.value=f0; if(q)f.Q.value=q;
   if(f1)f.frequency.exponentialRampToValueAtTime(f1,a.currentTime+d);
   const g=a.createGain(); g.gain.value=v; g.gain.exponentialRampToValueAtTime(.0001,a.currentTime+d);
   s.connect(f); f.connect(g); g.connect(a.destination); s.start(); s.stop(a.currentTime+d);}catch(e){} }
 const sfx = {
   swap(){ beep(300,.06,'triangle',.05,380); },
   bad(){ beep(140,.15,'sawtooth',.06,90); },
-  crush(n){ noise(.25,'lowpass',1600,300,.28); beep(420+n*60,.12,'sine',.08,650+n*60); },
+  crush(n, type){ const t=Math.min(n||3,7);
+    // per-piece-type clip. Gem (4) = glass shatter with BOTH clips mixed; all others random-pick.
+    const real = (type === 4)
+      ? playLayer(['bottle','glass'])                                          // gem → mixed glass shatter (Eric reversal)
+      : playRand((type !== undefined && PIECE_SFX[type]) || ['bonecrack','bonesnap']);
+    noise(.05,'bandpass',2500+Math.random()*400,900,real?.14:.36,7); // dry snap (quieter if layered on real clip)
+    noise(.13,'bandpass',680,170,real?.10:.26,3);              // splintering crunch
+    noise(.20,'lowpass',250,55,(real?.06:.15)+t*.02);          // low structural thud (scales w/ match size)
+    if(n>=4 && !real) setTimeout(()=>noise(.05,'bandpass',2000+Math.random()*300,700,.24,6),34); }, // 2nd crack on big breaks
   chain(c){ [660,830,990].slice(0,Math.min(3,c)).forEach((f,i)=>setTimeout(()=>beep(f,.12,'sine',.09),i*70)); },
-  over(){ noise(.8,'lowpass',900,80,.4); beep(90,.7,'sine',.2,30); }
+  over(){ playClip('laugh'); noise(.8,'lowpass',900,80,.4); beep(90,.7,'sine',.2,30); }
 };
+// Drop-in audio bank (sounds/, all loudnorm-normalized mp3). If a file is absent (onerror flag),
+// we silently fall back to the synth SFX above — no 404 spam, guarded exactly like the SPRITES loader.
+function loadClip(file, vol){ const a = new Audio('sounds/' + file); a.preload = 'auto'; a.volume = vol;
+  a.onerror = () => { a._failed = true; }; return a; }
+const CLIPS = {
+  laugh:       loadClip('evil_laugh.mp3', .6),
+  bonecrack:   loadClip('bone-crack.mp3', .55),   bonesnap:  loadClip('bone-snap.mp3', .55),
+  bottle:      loadClip('bottle-shatter.mp3', .5), glass:    loadClip('glass-breaking.mp3', .5),
+  meow:        loadClip('cat-meowing.mp3', .5),
+  cauldron:    loadClip('cauldron-bubbling.mp3', .55),
+  coins:       loadClip('clinking-coins.mp3', .6),
+  elexpl:      loadClip('electric-explosive.mp3', .45), expl05: loadClip('explosion-05.mp3', .45),
+  expl:        loadClip('explosion.mp3', .45),   elec46:    loadClip('electric46.mp3', .4),
+  magic:       loadClip('magic-spell.mp3', .45),
+  knife:       loadClip('knife-stab.mp3', .55),
+  woodendoll:  loadClip('wooden-doll.mp3', .55),
+  howl:        loadClip('wolf-howl.mp3', .5),
+  angel:       loadClip('angelical-synth.mp3', .5),
+  flesh1:      loadClip('hit-flesh-01.mp3', .55), flesh2:   loadClip('hit-flesh-02.mp3', .55),
+};
+// Verification-only sound tracing: add &sfxlog to the URL to see which clip fires per match.
+const SFX_LOG = location.search.includes('sfxlog');
+function playClip(name){ if (muted) return false; const c = CLIPS[name];
+  if (!c || c._failed || !c.readyState) return false;               // not loaded → let synth handle it
+  try { const p = c.cloneNode(); p.volume = c.volume; p.play().catch(()=>{});
+    if (SFX_LOG) console.log('[sfx]', name); return true; } catch(e){ return false; } }
+function playRand(names){ if (!names || !names.length) return false;
+  return playClip(names[Math.floor(Math.random()*names.length)]); }
+/* Layer (mix) every clip in the list simultaneously — used for the gem's glass shatter. */
+function playLayer(names){ if (!names || !names.length) return false; let any = false;
+  for (const n of names) if (playClip(n)) any = true; return any; }
+/* Per-piece match sounds (random pick from each array keeps it fresh — Eric's mapping):
+   bone pieces → crack/snap · cat → meow · cauldron → bubble · heart → flesh hits.
+   gem → GLASS SHATTER: both glass clips (bottle-shatter + glass-breaking) are LAYERED together
+   (see sfx.crush) — Eric's reversal of the earlier gem→bone tweak. The emerald shatters like glass. */
+const PIECE_SFX = [
+  ['bonecrack','bonesnap'],   // 0 skull
+  ['bonecrack','bonesnap'],   // 1 crossbones
+  ['bonecrack','bonesnap'],   // 2 ribcage
+  ['bonecrack','bonesnap'],   // 3 femur
+  ['bottle','glass'],         // 4 gem → glass shatter (both clips layered — Eric reversal)
+  ['meow'],                   // 5 black cat
+  ['cauldron'],               // 6 cauldron
+  ['flesh1','flesh2'],        // 7 heart
+];
+/* Special-piece detonation voices; anything unlisted just gets the explosion layer. */
+const SPECIAL_SFX = {
+  potion:    ['bottle','glass'],            // glass things shatter
+  fingerjar: ['bottle','glass'],
+  key:       ['woodendoll'],                  // voodoo doll's wooden clack
+  coin:      ['coins'],
+  knife:     ['knife','flesh1','flesh2'],   // stab alternating with flesh hits
+  moon:      ['howl'],
+  cross:     ['angel'],
+};
+/* Explosion enhancement layers — one random pick stacked ON TOP of specials + big chains. */
+const EXPLO_SFX = ['elexpl','expl05','expl','elec46','magic'];
+/* Small, quiet, single explosion layered on EVERY normal (non-special, non-big-chain) match.
+   Reduced gain + one unstacked instance keeps it clearly smaller than the loud combo layer. */
+const SMALL_EXPLO_VOL = 0.38;
+function playSmallExplosion(){ if (muted) return false;
+  const name = EXPLO_SFX[Math.floor(Math.random()*EXPLO_SFX.length)];
+  const c = CLIPS[name]; if (!c || c._failed || !c.readyState) return false;   // not loaded → skip
+  try { const p = c.cloneNode(); p.volume = SMALL_EXPLO_VOL; p.play().catch(()=>{});
+    if (SFX_LOG) console.log('[sfx]', name, '(small)'); return true; } catch(e){ return false; } }
+const bugBtn = document.getElementById('bug');
+bugBtn.onclick = (e)=>{ e.stopPropagation(); bugReport(); };
 const muteBtn = document.getElementById('mute');
 muteBtn.onclick = (e)=>{ e.stopPropagation(); muted=!muted; localStorage.bc_mute=muted?'1':'0'; drawMute(); };
 function drawMute(){ muteBtn.textContent = muted ? '🔇':'🔊'; } drawMute();
 
-/* pieces: 0 skull, 1 crossbones, 2 rib, 3 femur, 4 candle-eye gem */
-const COLS = ['#e8dcc2', '#cbb389', '#b7a58e', '#d9915c', '#7fc76f'];   // aged, dug-from-dirt bone tones
+/* pieces: 0 skull, 1 crossbones, 2 rib, 3 femur, 4 gem, 5 black cat, 6 cauldron, 7 heart */
+const COLS = ['#e8dcc2', '#cbb389', '#b7a58e', '#d9915c', '#7fc76f',
+              '#a08ac9', '#9fe86f', '#ff5c5c'];   // burst colors: cat violet, cauldron slime, heart red
+// Hi-fi sprites (128px transparent PNGs in assets/, sliced from Eric's sheets by art_src/slice_pieces.py).
+// Each loads once; drawPiece uses the image when ready and silently falls back to the vector art otherwise.
+const SPRITE_FILES = ['skull.png', 'crossbones.png', 'ribcage.png', 'femur.png', 'gem.png',
+                      'blackcat.png', 'cauldron.png', 'heart.png'];
+// Base score for a single relic. Chain multipliers are applied when a match resolves.
+const PIECE_VALUES = [20, 10, 10, 10, 15, 13, 12, 15];
+const SPRITES = SPRITE_FILES.map(f => { const im = new Image(); im.onerror = () => { im._failed = true; }; im.src = 'assets/' + f; return im; });
+// Special power-piece sprites (rare glowing relics). Encoded as type >= SP_BASE on the grid.
+const SP_BASE = 100;
+const SPECIAL_DEFS = [
+  { id:'potion', name:'Potion', file:'potion.png', glow:'#8a4fff', label:'3×3 blast' },
+  { id:'key', name:'Voodoo Doll', file:'voodoo.png', glow:'#ffd23c', label:'move 6 · blast 6 · move 6' },
+  { id:'eyeball', name:'Eyeball', file:'eyeball.png', glow:'#5cff8a', label:'color bomb' },
+  { id:'coin', name:'Coin Burst', file:'coin.png', glow:'#ffbf3c', label:'score burst' },
+  { id:'hand', name:'Bone Hand', file:'hand.png', glow:'#ff5c7a', label:'four simultaneous claw columns' },
+  { id:'megabone', name:'Megabone', file:'femur_alt.png', glow:'#7ad7ff', label:'MEGA double row' },
+  { id:'ripple', name:'Ripple', file:'ripple.png', glow:'#ff3cf0', label:'board ripple' }, // diamond blast + chains every special
+  // NOTE: ripple previously reused gem.png — visually identical to the normal green gem, so players
+  // lined it up with real gems and got "denied" swaps (specials never match by color). Now magenta.
+  // Asset drop 02 specials (sliced from Bon crush assets 02 sheet):
+  { id:'knife', name:'Knife', file:'knife.png', glow:'#ff3030', label:'X slash' },
+  { id:'moon', name:'Moon', file:'moon.png', glow:'#cfe8ff', label:'lunar purge' },
+  { id:'cross', name:'Holy Cross', file:'cross.png', glow:'#ffe9b0', label:'holy cross' },
+  { id:'fingerjar', name:'Finger Jar', file:'fingerjar.png', glow:'#b8ffd8', label:'five-point shatter' },
+  // Sliced but held in reserve (assets/): voodoo.png, book.png, coffin.png, eyecoin.png
+];
+const SP_SPRITES = SPECIAL_DEFS.map(d => { const im = new Image(); im.onerror = () => { im._failed = true; };
+  im.src = 'assets/' + d.file; return im; });
+function isSpecial(t){ return t >= SP_BASE; }
+function specialIdx(t){ return t - SP_BASE; }
 function drawPiece(t, x, y, r, wob){
   cx.save(); cx.translate(x, y); if (wob) cx.rotate(Math.sin(wob)*.08);
   // drop shadow + under-glow make relics pop off the stone
   cx.fillStyle = 'rgba(0,0,0,.45)';
   cx.beginPath(); cx.ellipse(0, r*.72, r*.55, r*.16, 0, 0, 7); cx.fill();
+  // SPECIAL power piece: pulsing additive glow aura behind the sprite, then draw the extra sprite
+  if (isSpecial(t)){
+    const def = SPECIAL_DEFS[specialIdx(t)], spr = SP_SPRITES[specialIdx(t)];
+    const pulse = 0.6 + 0.4*Math.sin(t0*0.006 + x*0.03 + y*0.03);
+    cx.save(); cx.globalCompositeOperation = 'lighter';
+    const gg = cx.createRadialGradient(0, 0, 0, 0, 0, r*1.5*pulse);
+    gg.addColorStop(0, def.glow); gg.addColorStop(.4, def.glow + '88');
+    gg.addColorStop(1, 'rgba(0,0,0,0)');
+    cx.globalAlpha = .55 + .3*pulse;
+    cx.fillStyle = gg; cx.beginPath(); cx.arc(0, 0, r*1.5*pulse, 0, 7); cx.fill();
+    cx.restore();
+    if (spr && !spr._failed && spr.complete && spr.naturalWidth)
+      cx.drawImage(spr, -r*1.02, -r*1.05, r*2.04, r*2.04);
+    else { cx.fillStyle = def.glow; cx.beginPath(); cx.arc(0, 0, r*.6, 0, 7); cx.fill(); }
+    cx.restore(); return;
+  }
+  // sprite override (keeps the grounding shadow + wobble), else vector fallback below
+  const spr = SPRITES[t];
+  if (spr && !spr._failed && spr.complete && spr.naturalWidth){
+    cx.drawImage(spr, -r*1.05, -r*1.1, r*2.1, r*2.1);
+    cx.restore(); return;
+  }
   cx.fillStyle = COLS[t]; cx.strokeStyle = 'rgba(0,0,0,.55)'; cx.lineWidth = 2;
   if (t === 0){ // skull
     cx.beginPath(); cx.arc(0, -r*.1, r*.72, 0, 7); cx.fill();
@@ -168,7 +350,67 @@ function drawPiece(t, x, y, r, wob){
 
 /* board state */
 let grid = [], sel = null, score = 0, moves = 0, busy = false, playing = false;
-let anims = [], parts = [], rings = [], flash = 0, shake = 0, t0 = 0;
+let anims = [], parts = [], rings = [], flashes = [], rays = [], pops = [], flash = 0, shake = 0, t0 = 0;
+let flyers = [], wings = [], slashes = [];   // score flyers, angel-wing bursts, knife slash streaks
+const MAX_PARTS = 420;   // hard cap keeps 60fps even on huge chains
+const MAX_RAYS = 40, MAX_POPS = 14, MAX_FLYERS = 12;   // caps for ray bursts + score popups + score flyers (60fps guard)
+/* Animated score display: `score` is authoritative (logic); `scoreShown` rolls up toward `scoreTarget`,
+   which is bumped as score flyers ARRIVE at the counter — so the number climbs as +N popups land. */
+let scoreShown = 0, scoreTarget = 0, hudPulse = 0, hudFlash = 0;
+function bumpScore(v){                 // called when a flyer reaches the counter (or instantly if capped)
+  scoreTarget += v;
+  hudPulse = Math.min(1.5, hudPulse + 0.42 + Math.min(0.9, v/300));   // extra drama for big jumps
+  hudFlash = 1;
+}
+/* floating score popup: grows fast, floats up, fades out (~0.9s). Bigger power = bigger + more colorful. */
+function addPop(x, y, txt, power, col){
+  if (pops.length >= MAX_POPS) pops.shift();
+  pops.push({ x, y, txt, t:0, life:.9, power: power || 1, col: col || '#ffd24a' });
+}
+/* Score flyer: a big "+N" pops at the crush, drops briefly under gravity, then streams to the top-left
+   counter; when it lands, bumpScore() ticks the total up. Capped for perf → over-cap gains bank instantly. */
+function addScoreFly(x, y, value, power, col){
+  if (!playing || value <= 0){ scoreTarget += value; return; }
+  if (flyers.length >= MAX_FLYERS){ bumpScore(value); return; }
+  flyers.push({ x, y, sx:x, sy:y, value, power: power || 1, col: col || '#ffd24a', t:0, pop:.18, drop:.26, fly:.62 });
+}
+function hudTargetCanvas(){   // score counter centre, in canvas draw-space (CSS px; may be negative = above board)
+  const cr = cv.getBoundingClientRect(), hr = hud.getBoundingClientRect();
+  return { x: hr.left + hr.width*0.5 - cr.left, y: hr.top + hr.height*0.5 - cr.top };
+}
+/* ambiance: cosmetic creatures drifting behind the board. Purely decorative, low opacity,
+   skipped entirely when the user prefers reduced motion. */
+const REDUCED_MOTION = matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches;
+let creatures = [];
+function spawnCreature(){
+  if (REDUCED_MOTION) return;
+  const W = CELL*N, kind = ['bat','cat','witch'][Math.floor(Math.random()*3)];
+  const dir = Math.random() < .5 ? 1 : -1;
+  if (kind === 'cat'){                          // trots along the bottom
+    creatures.push({ kind, x: dir>0?-60:W+60, y: W - CELL*0.55, dir, sp: 55+Math.random()*35, t:0 });
+  } else if (kind === 'witch'){                 // silhouette past an upper "moon" band
+    creatures.push({ kind, x: dir>0?-80:W+80, y: CELL*(1.2+Math.random()*1.5), dir, sp: 70+Math.random()*40, t:0 });
+  } else {                                      // bat flaps across the middle
+    creatures.push({ kind, x: dir>0?-50:W+50, y: CELL*(1.5+Math.random()*(N-3)), dir, sp: 40+Math.random()*50, t:0 });
+  }
+  if (creatures.length > 3) creatures.shift();
+}
+function scheduleCreature(){ setTimeout(()=>{ if (!REDUCED_MOTION) spawnCreature(); scheduleCreature(); },
+  (15 + Math.random()*25) * 1000); }   // every ~15-40s
+function drawCreatures(dt){
+  const W = CELL*N;
+  cx.save(); cx.globalAlpha = 0.16;   // low opacity so they don't distract
+  for (let i = creatures.length-1; i >= 0; i--){ const c = creatures[i]; c.t += dt; c.x += c.dir*c.sp*dt;
+    if (c.x < -100 || c.x > W+100){ creatures.splice(i,1); continue; }
+    cx.save(); cx.translate(c.x, c.y); if (c.dir < 0) cx.scale(-1,1);
+    cx.font = Math.floor(CELL*0.7) + 'px serif'; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+    if (c.kind === 'bat'){ cx.translate(0, Math.sin(c.t*9)*CELL*0.12); cx.fillText('🦇', 0, 0); }
+    else if (c.kind === 'cat'){ cx.fillText('🐈‍⬛', 0, Math.sin(c.t*10)*2); }
+    else { cx.globalAlpha = 0.22; cx.fillText('🌕', 0, -CELL*0.1); cx.globalAlpha = 1; cx.fillText('🧙', 0, 0); }
+    cx.restore();
+  }
+  cx.restore();
+}
 function rngBoard(){
   const r = mulberry32(utcDayKey() ^ 0xB0E5);
   const g = [];
@@ -185,7 +427,7 @@ function rngBoard(){
 function findMatches(g){
   const m = new Set();
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++){
-    const t = g[y][x]; if (t < 0) continue;
+    const t = g[y][x]; if (t < 0 || t >= SP_BASE) continue;   // specials never match by color
     if (x <= N-3 && g[y][x+1] === t && g[y][x+2] === t){ let k = x; while (k < N && g[y][k] === t){ m.add(y*N+k); k++; } }
     if (y <= N-3 && g[y+1][x] === t && g[y+2][x] === t){ let k = y; while (k < N && g[k][x] === t){ m.add(k*N+x); k++; } }
   }
@@ -202,18 +444,50 @@ function anyMovePossible(g){
     }
   return false;
 }
-function burst(x, y, col){
-  // bone shards: chunky, spinning, gravity-heavy
-  for (let i = 0; i < 16; i++){ const a = Math.random()*7, v = 90 + Math.random()*260;
-    parts.push({ x, y, vx:Math.cos(a)*v, vy:Math.sin(a)*v - 120, rot:Math.random()*7,
-      vr:(Math.random()-.5)*14, w:4+Math.random()*7, t:0, life:.55+Math.random()*.5, col }); }
-  // hot core sparks
-  for (let i = 0; i < 8; i++){ const a = Math.random()*7, v = 40 + Math.random()*120;
-    parts.push({ x, y, vx:Math.cos(a)*v, vy:Math.sin(a)*v, rot:0, vr:0, w:3,
-      t:0, life:.3+Math.random()*.25, col:'#ffd873' }); }
-  rings.push({ x, y, t:0, life:.4 });
-  flash = Math.min(1, flash + .5);
-  shake = Math.min(18, shake + 8);
+function burst(x, y, col, power){
+  power = power || 1;   // 1 = normal cell, >1 = special detonation → bigger everything
+  const cap = () => parts.length < MAX_PARTS;
+  // bone shards: chunky, spinning, gravity-heavy, faster than before
+  for (let i = 0; i < 14*power && cap(); i++){ const a = Math.random()*7, v = 140 + Math.random()*340*power;
+    parts.push({ x, y, vx:Math.cos(a)*v, vy:Math.sin(a)*v - 150, rot:Math.random()*7,
+      vr:(Math.random()-.5)*16, w:4+Math.random()*7, t:0, life:.5+Math.random()*.5, col }); }
+  // hot additive core sparks (rendered with 'lighter' for bloom)
+  for (let i = 0; i < 12*power && cap(); i++){ const a = Math.random()*7, v = 60 + Math.random()*200*power;
+    parts.push({ x, y, vx:Math.cos(a)*v, vy:Math.sin(a)*v, rot:0, vr:0, w:3+Math.random()*3,
+      t:0, life:.28+Math.random()*.3, col:i%2?'#ffe9a0':'#ffb04a', glow:true }); }
+  // bright radial flash bloom at the cleared cell + fast glowing shockwave ring
+  flashes.push({ x, y, t:0, life:.32, r:CELL*(.9+power*.7) });
+  rings.push({ x, y, t:0, life:.42, power });
+  // "raytrace" light beams: rotating additive rays fanning out from the crush point
+  if (rays.length < MAX_RAYS)
+    rays.push({ x, y, t:0, life:.34 + power*.08, n: Math.min(6 + power*4, 22),
+      rot: Math.random()*7, vr: (Math.random() < .5 ? -1 : 1) * (2.2 - Math.min(power,3)*.4),
+      len: CELL*(1.15 + power*.85), col });
+  flash = Math.min(1, flash + .35 + power*.12);
+  shake = Math.min(30, shake + 6 + power*4);   // bigger match/chain → bigger boom
+}
+/* Glowing angel wings that spread outward from a point, spitting glowing sparks, then fade.
+   Used by the CROSS special's detonation. Additive, capped particles, drawn in render(). */
+function spawnAngelWings(x, y){
+  wings.push({ x, y, t:0, life:1.05 });
+  for (let i = 0; i < 26 && parts.length < MAX_PARTS; i++){
+    const a = Math.random()*7, v = 55 + Math.random()*185;
+    parts.push({ x, y, vx:Math.cos(a)*v, vy:Math.sin(a)*v - 45, rot:0, vr:0,
+      w:2+Math.random()*3, t:0, life:.5+Math.random()*.55, col:i%2?'#fff6d8':'#ffe6a0', glow:true });
+  }
+  flash = Math.min(1, flash + .45);
+}
+/* Bright slash streak across the board along (dx,dy) through (x,y), plus sparks along the cut.
+   Used by the KNIFE special's two diagonal slashes. */
+function spawnSlash(x, y, dx, dy, col){
+  const W = CELL*N;
+  slashes.push({ x1:x-dx*W, y1:y-dy*W, x2:x+dx*W, y2:y+dy*W, t:0, life:.38, col: col || '#fff2d8' });
+  for (let i = 0; i < 12 && parts.length < MAX_PARTS; i++){
+    const u = (Math.random()-.5)*W*.65;
+    const a = Math.random()*7, v = 90 + Math.random()*170;
+    parts.push({ x:x+dx*u, y:y+dy*u, vx:Math.cos(a)*v, vy:Math.sin(a)*v, rot:0, vr:0,
+      w:2+Math.random()*3, t:0, life:.28+Math.random()*.3, col:'#fff0d0', glow:true });
+  }
 }
 async function resolveBoard(chain){
   const m = findMatches(grid);
@@ -221,21 +495,184 @@ async function resolveBoard(chain){
     if (!anyMovePossible(grid)){ showToast('☠ No moves left — bones reshuffle'); grid = rngBoard(); }
     busy = false; if (moves <= 0) gameOver(); return;
   }
-  const gain = m.size * 10 * chain;
+  let baseGain = 0;
+  for (const i of m){ const x = i%N, y = (i-x)/N; baseGain += PIECE_VALUES[grid[y][x]] || 10; }
+  const gain = baseGain * chain;
   score += gain; hudDraw();
-  sfx.crush(m.size); if (chain > 1) sfx.chain(chain);
+  // dominant piece type in the match drives which clip plays (skulls crack, cats meow, hearts squish…)
+  const tCnt = {};
+  for (const i of m){ const tt = grid[(i-(i%N))/N][i%N]; if (tt >= 0 && tt < SP_BASE) tCnt[tt] = (tCnt[tt]||0)+1; }
+  const domType = +Object.keys(tCnt).sort((a,b)=>tCnt[b]-tCnt[a])[0];
+  sfx.crush(m.size, domType); if (chain > 1) sfx.chain(chain);
+  const bigChain = chain >= 3 || m.size >= 5;   // reward big plays with a special seed
+  if (bigChain) playRand(EXPLO_SFX);            // loud explosive layer stacked on big chains
+  else playSmallExplosion();                    // small quiet explosion on every normal match (gated: not on big chains)
+  let seedCell = null, cxSum = 0, cySum = 0;
   for (const i of m){ const x = i%N, y = (i-x)/N;
-    burst(x*CELL + CELL/2, y*CELL + CELL/2, COLS[grid[y][x]]); grid[y][x] = -1; }
+    burst(x*CELL + CELL/2, y*CELL + CELL/2, COLS[grid[y][x]] || '#e8dcc2', 1); grid[y][x] = -1;
+    cxSum += x; cySum += y;
+    if (bigChain && !seedCell) seedCell = {x, y};
+  }
+  // score flyer at the centre of the crushed match — pops, then streams to the counter (which ticks up on arrival)
+  const popPow = Math.min(3, 1 + (chain-1)*.5 + (m.size-3)*.2);
+  addScoreFly((cxSum/m.size)*CELL + CELL/2, (cySum/m.size)*CELL + CELL/2, gain, popPow,
+         chain >= 3 ? '#ff9a2a' : chain === 2 ? '#ffd24a' : '#f6ecd7');
   await sleep(220);
-  // gravity
-  const r = mulberry32((utcDayKey()^0xFA11) + score);   // refills deterministic per day+score
+  // gravity + refill (deterministic per day+score); occasionally seed a rare special power piece
+  const r = mulberry32((utcDayKey()^0xFA11) + score);
   for (let x = 0; x < N; x++){
     let write = N-1;
     for (let y = N-1; y >= 0; y--) if (grid[y][x] >= 0) grid[write--][x] = grid[y][x];
-    for (let y = write; y >= 0; y--) grid[y][x] = Math.floor(r()*TYPES);
+    for (let y = write; y >= 0; y--)
+      grid[y][x] = (r() < 0.045) ? (SP_BASE + Math.floor(r()*SPECIAL_DEFS.length))   // ~4.5% special
+                                 : Math.floor(r()*TYPES);
   }
+  // guarantee a special drop after a big chain so power plays feel rewarded
+  if (bigChain && seedCell){ let done = false;
+    for (let y = 0; y < N && !done; y++) for (let x = 0; x < N && !done; x++)
+      if (!isSpecial(grid[y][x])){ grid[y][x] = SP_BASE + Math.floor(r()*SPECIAL_DEFS.length); done = true; } }
   await sleep(160);
   resolveBoard(chain + 1);
+}
+/* ── SPECIAL POWER PIECES ──────────────────────────────────────────────────
+   Fired when the player swaps a special into a neighbor. Each ability marks a
+   set of cells for clearing, detonates a big explosion + evil laugh, then hands
+   back to gravity/resolve. Robust: abilities only ever set cells to -1, never
+   corrupt the grid, so the base match-3 keeps working. */
+function px(x){ return x*CELL + CELL/2; }
+function fireSpecial(sx, sy){
+  const idx = specialIdx(grid[sy][sx]), def = SPECIAL_DEFS[idx];
+  const clear = new Set(); const mark = (x,y) => { if (x>=0&&x<N&&y>=0&&y<N) clear.add(y*N+x); };
+  let bonus = 0, stages = null;
+  if (def.id === 'potion'){                       // 3×3 area blast
+    for (let dy=-1; dy<=1; dy++) for (let dx=-1; dx<=1; dx++) mark(sx+dx, sy+dy);
+  } else if (def.id === 'key'){                    // handled as the staged voodoo ritual below
+  } else if (def.id === 'hand'){                   // four vertical claw passes: visible columns 1, 3, 5, 7
+    const cols = [0, 2, 4, 6].map(x => Math.min(N-1, x));
+    stages = cols.map(x => { const cells = []; for (let y=0; y<N; y++){ mark(x,y); cells.push(y*N+x); } return cells; });
+  } else if (def.id === 'eyeball'){                // color bomb: all of one random normal type
+    const target = Math.floor(Math.random()*TYPES);
+    for (let y=0; y<N; y++) for (let x=0; x<N; x++) if (grid[y][x] === target) mark(x, y);
+    mark(sx, sy);
+  } else if (def.id === 'coin'){                   // score burst + brief multiplier
+    for (let dy=-1; dy<=1; dy++) for (let dx=-1; dx<=1; dx++) mark(sx+dx, sy+dy);
+    bonus = 500;
+  } else if (def.id === 'megabone'){               // two-row horizontal sweep only
+    const sy2 = Math.min(N-1, sy+1);
+    for (let k=0; k<N; k++){ mark(k, sy); mark(k, sy2); }
+    bonus = 250;
+  } else if (def.id === 'knife'){                  // X slash: both diagonals through the cell
+    for (let k=-N; k<=N; k++){ mark(sx+k, sy+k); mark(sx+k, sy-k); }
+    bonus = 150;
+  } else if (def.id === 'moon'){                   // lunar purge: clears ALL of the most common normal type
+    const cnt = new Array(TYPES).fill(0);
+    for (let y=0; y<N; y++) for (let x=0; x<N; x++) if (grid[y][x] >= 0 && !isSpecial(grid[y][x])) cnt[grid[y][x]]++;
+    const target = cnt.indexOf(Math.max(...cnt));
+    for (let y=0; y<N; y++) for (let x=0; x<N; x++) if (grid[y][x] === target) mark(x, y);
+    bonus = 200;
+  } else if (def.id === 'cross'){                  // holy cross: full row + full column (a BOLD plus), not a 5×5
+    for (let k=0; k<N; k++){ mark(k, sy); mark(sx, k); }
+    for (let dy=-1; dy<=1; dy++) for (let dx=-1; dx<=1; dx++) mark(sx+dx, sy+dy);   // thick center → reads as a bold cross
+    bonus = 200;
+  } else if (def.id === 'fingerjar'){              // four corners, then the centre, one glass blast at a time
+    const targets = [[0,0],[N-1,0],[N-1,N-1],[0,N-1],[Math.floor(N/2),Math.floor(N/2)]];
+    stages = targets.map(([x,y]) => { mark(x,y); return [y*N+x]; });
+    bonus = 100;
+  } else if (def.id === 'ripple'){                 // board ripple: big diamond + chain-detonates EVERY special
+    for (let y=0; y<N; y++) for (let x=0; x<N; x++)
+      if (Math.abs(x-sx) + Math.abs(y-sy) <= 3 || isSpecial(grid[y][x])) mark(x, y);
+    bonus = 400;
+  }
+  if (def.id !== 'hand') mark(sx, sy);   // Hand is intentionally limited to its four staged rows.
+  return { clear, bonus, def, stages };
+}
+function randomBoardCells(count, predicate=()=>true){
+  const pool=[];
+  for(let y=0;y<N;y++) for(let x=0;x<N;x++) if(predicate(grid[y][x],x,y)) pool.push(y*N+x);
+  for(let i=pool.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [pool[i],pool[j]]=[pool[j],pool[i]]; }
+  return pool.slice(0, Math.min(count,pool.length));
+}
+async function detonateVoodoo(sx, sy, def){
+  const moveSix = async () => {
+    // Six ordinary relics rotate among six random locations, rather than merely swapping two pairs.
+    const cells = randomBoardCells(6, t => t >= 0 && !isSpecial(t));
+    const values = cells.map(i => grid[(i-i%N)/N][i%N]);
+    values.unshift(values.pop());
+    for (let i=0; i<cells.length; i++){
+      const at=cells[i], x=at%N, y=(at-x)/N; grid[y][x]=values[i];
+      burst(px(x),px(y),def.glow,1); await sleep(55);
+    }
+  };
+  // Consume the doll before any movement so it can never be relocated and reused.
+  grid[sy][sx] = -1; burst(px(sx),px(sy),def.glow,3);
+  playClip('laugh'); playRand(SPECIAL_SFX.key); await moveSix();
+  const victims = randomBoardCells(6, t => t >= 0 && !isSpecial(t)), gain = victims.length * 12 + 150;
+  score += gain; hudDraw(); addScoreFly(px(sx),px(sy),gain,2.5,def.glow);
+  for (const i of victims){ const x=i%N,y=(i-x)/N; burst(px(x),px(y),def.glow,2); grid[y][x]=-1; playRand(EXPLO_SFX); await sleep(105); }
+  await moveSix();
+  showToast('✦ VOODOO — move 6 · detonate 6 · move 6');
+  await sleep(160);
+  const r = mulberry32((utcDayKey()^0xFA11) + score);
+  for (let x=0; x<N; x++){
+    let write=N-1; for(let y=N-1;y>=0;y--) if(grid[y][x]>=0) grid[write--][x]=grid[y][x];
+    for(let y=write;y>=0;y--) grid[y][x]=Math.floor(r()*TYPES);
+  }
+  await sleep(160); resolveBoard(2);
+}
+async function detonateSpecial(sx, sy){
+  const { clear, bonus, def, stages } = fireSpecial(sx, sy);
+  if (def.id === 'key') return detonateVoodoo(sx, sy, def);
+  playClip('laugh');
+  playRand(EXPLO_SFX);                     // a random explosive layer on top of every detonation
+  sfx.crush(6); sfx.chain(2);
+  const gain = clear.size * 12 + bonus;
+  score += gain; hudDraw();
+  // extra-big explosion centred on the special, plus a burst on every cleared cell
+  const mega = def.id === 'megabone' || def.id === 'ripple';   // new heavy-hitters blow up BIGGER
+  burst(px(sx), px(sy), def.glow, mega ? 5 : 3);
+  addScoreFly(px(sx), px(sy), gain, mega ? 3 : 2.2, def.glow);
+  // special-specific VFX + voices
+  if (def.id === 'knife'){
+    // DOUBLE diagonal slash: slash 1 (TL→BR) now, slash 2 (TR→BL) shortly after — each with its own
+    // flash streak AND a knife-stab, so the stab sound fires TWICE, timed to each slash.
+    spawnSlash(px(sx), px(sy), Math.SQRT1_2, Math.SQRT1_2, '#fff2d8'); playClip('knife');
+    setTimeout(()=>{ spawnSlash(px(sx), px(sy), Math.SQRT1_2, -Math.SQRT1_2, '#fff2d8'); playClip('knife'); }, 190);
+  } else if (def.id === 'cross'){
+    spawnAngelWings(px(sx), px(sy));       // glowing angel wings spread from the cross centre
+    playClip('angel');                     // keep the angelical-synth voice
+  } else if (def.id !== 'fingerjar') {
+    playRand(SPECIAL_SFX[def.id] || null); // the special's own voice (howl, shatter, coins…)
+  }
+  const clearCell = i => { const x = i%N, y = (i-x)/N;
+    const sp2 = isSpecial(grid[y][x]);
+    const c = sp2 ? def.glow : (COLS[grid[y][x]] || def.glow);
+    burst(px(x), px(y), c, sp2 ? 2 : 1); grid[y][x] = -1; };
+  if (stages){
+    if (def.id === 'hand'){
+      // All four bone hands scrape down together, matching the knife's simultaneous impact style.
+      for (const stage of stages){
+        for (const i of stage) clearCell(i);
+        spawnSlash(px(stage[0]%N), px(sy), 0, 1, def.glow);
+      }
+      await sleep(120);
+    } else for (const stage of stages){
+      for (const i of stage) clearCell(i);
+      if (def.id === 'fingerjar') playRand(SPECIAL_SFX.fingerjar);
+      await sleep(120);
+    }
+    for (const i of clear) if (grid[(i-i%N)/N][i%N] >= 0) clearCell(i);
+  } else for (const i of clear) clearCell(i);
+  showToast('✦ ' + def.id.toUpperCase() + ' — ' + def.label);
+  await sleep(240);
+  const r = mulberry32((utcDayKey()^0xFA11) + score);
+  for (let x = 0; x < N; x++){
+    let write = N-1;
+    for (let y = N-1; y >= 0; y--) if (grid[y][x] >= 0) grid[write--][x] = grid[y][x];
+    for (let y = write; y >= 0; y--)
+      grid[y][x] = (r() < 0.045) ? (SP_BASE + Math.floor(r()*SPECIAL_DEFS.length)) : Math.floor(r()*TYPES);
+  }
+  await sleep(160);
+  resolveBoard(2);   // cascade any matches the blast created
 }
 function sleep(ms){ return new Promise(res => setTimeout(res, ms)); }
 
@@ -246,19 +683,58 @@ function cellAt(e){
   const x = Math.floor((p.clientX - r.left) / CELL), y = Math.floor((p.clientY - r.top) / CELL);
   return (x >= 0 && x < N && y >= 0 && y < N) ? {x, y} : null;
 }
+/* swap-attempt log for the F8 bug reporter (last 5 attempts, newest last) */
+const swapLog = [];
+function logSwap(a, b, accepted, reason, fromPiece, toPiece){
+  swapLog.push({ from:{...a}, to:{...b}, fromPiece, toPiece,
+    accepted, reason, score, moves, t: Date.now() });
+  if (swapLog.length > 5) swapLog.shift();
+}
+function pieceName(t){ if (t === undefined) return '?'; if (t < 0) return 'empty';
+  return isSpecial(t) ? 'SPECIAL:' + SPECIAL_DEFS[specialIdx(t)].id
+       : ['skull','crossbones','ribcage','femur','gem','blackcat','cauldron','heart'][t] || String(t); }
 async function trySwap(a, b){
-  if (busy || Math.abs(a.x-b.x) + Math.abs(a.y-b.y) !== 1) { sel = null; return; }
+  const pa = pieceName(grid[a.y] && grid[a.y][a.x]), pb = pieceName(grid[b.y] && grid[b.y][b.x]);
+  if (busy || Math.abs(a.x-b.x) + Math.abs(a.y-b.y) !== 1) {
+    logSwap(a, b, false, busy ? 'busy (board resolving)' : 'not adjacent', pa, pb); sel = null; return; }
   busy = true; sel = null;
+  // Special power piece: swapping it into a neighbor fires its ability (no color match needed).
+  const aSp = isSpecial(grid[a.y][a.x]), bSp = isSpecial(grid[b.y][b.x]);
+  if (aSp || bSp){
+    logSwap(a, b, true, 'special detonation', pa, pb);
+    sfx.swap(); moves--; hudDraw();
+    const s = aSp ? a : b;                 // detonate at the special's cell
+    await detonateSpecial(s.x, s.y);
+    return;
+  }
   [grid[a.y][a.x], grid[b.y][b.x]] = [grid[b.y][b.x], grid[a.y][a.x]];
   sfx.swap();
   await sleep(120);
   if (findMatches(grid).size === 0){
     [grid[a.y][a.x], grid[b.y][b.x]] = [grid[b.y][b.x], grid[a.y][a.x]];
+    logSwap(a, b, false, 'no match formed', pa, pb);
     sfx.bad(); busy = false; return;
   }
+  logSwap(a, b, true, 'match', pa, pb);
   moves--; hudDraw();
   resolveBoard(1);
 }
+/* ── BUG REPORTER (F8 or 🐞) — downloads a JSON snapshot Eric can send back ── */
+function bugReport(){
+  let note = '';
+  try { note = prompt('🐞 Bug report — what went wrong? (optional)') || ''; } catch(e){}
+  const board = grid.map(row => row.map(t => t < 0 ? 'empty' : pieceName(t)));
+  const data = { when: new Date().toISOString(), note, score, moves, playing, busy,
+                 dayKey: utcDayKey(), board, lastSwaps: swapLog.slice() };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'bonecrush_report_' + Date.now() + '.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+  showToast('🐞 Report downloaded');
+}
+addEventListener('keydown', e => { if (e.key === 'F8'){ e.preventDefault(); bugReport(); } });
 let dragStart = null;
 cv.addEventListener('pointerdown', e => { if (!playing || busy) return;
   const c = cellAt(e); if (!c) return;
@@ -279,7 +755,7 @@ const overlay = document.getElementById('overlay'), btnGo = document.getElementB
       movesEl = document.getElementById('moves'), toast = document.getElementById('toast'),
       scoreLine = document.getElementById('scoreLine'), resultBlock = document.getElementById('resultBlock'),
       dailyEl = document.getElementById('daily');
-function hudDraw(){ hud.textContent = '💀 ' + score; movesEl.textContent = '⛏ ' + moves; }
+function hudDraw(){ movesEl.textContent = '⛏ ' + moves; }   // score readout is animated in render() via tickScore()
 function showToast(t){ toast.textContent = t; toast.style.opacity = 1; setTimeout(()=>toast.style.opacity = 0, 2000); }
 function fmtReset(){ const ms = msToReset(); return `New board in ${Math.floor(ms/3.6e6)}h ${Math.floor(ms%3.6e6/6e4)}m`; }
 function refreshMenu(done){
@@ -296,16 +772,35 @@ function refreshMenu(done){
     btnGo.textContent = 'DIG AGAIN';
   }
 }
+let runs = 0;
 function start(){
   try { const a = ac(); a && a.resume && a.resume(); } catch(e){}
   grid = rngBoard(); score = 0; moves = MOVES0; sel = null; busy = false; playing = true;
+  scoreShown = 0; scoreTarget = 0; hudPulse = 0; hudFlash = 0;
+  flyers.length = 0; wings.length = 0; slashes.length = 0; pops.length = 0;
   overlay.classList.add('hidden'); hudDraw();
+  runs++;
+  try { PSDK.start(); } catch(e){}          // gameplayStart on DIG IN / DIG AGAIN
 }
 function gameOver(){
-  playing = false; sfx.over(); store.save(score);
+  playing = false; scoreTarget = score; flyers.length = 0;   // bank any in-flight points onto the final total
+  try { PSDK.stop(); } catch(e){}           // gameplayStop on game over (death screen)
+  sfx.over(); store.save(score);
   setTimeout(()=>{ overlay.classList.remove('hidden'); refreshMenu(true); }, 700);
 }
-['click','touchend'].forEach(ev => btnGo.addEventListener(ev, e => { e.stopPropagation(); e.preventDefault(); start(); }));
+/* DIG IN / DIG AGAIN. First run: straight into the game (no ad on first load).
+   Every later run is a natural break → request a midgame ad, muting audio while it plays,
+   then start once the ad finishes/errors (must start even if the ad fails). */
+let adBusy = false;
+function beginGame(){
+  if (adBusy) return;
+  if (runs > 0){
+    adBusy = true;
+    const wasMuted = muted; muted = true;   // silence SFX for the duration of the ad
+    PSDK.midgame().catch(()=>{}).then(()=>{ muted = wasMuted; adBusy = false; start(); });
+  } else start();
+}
+['click','touchend'].forEach(ev => btnGo.addEventListener(ev, e => { e.stopPropagation(); e.preventDefault(); beginGame(); }));
 btnShare.onclick = async e => { e.stopPropagation();
   const txt = `💀 I crushed ${score} on today's Bone Crush board — everyone digs the SAME catacomb today. Beat me: ${location.href.split('?')[0]}`;
   try { if (navigator.share) await navigator.share({ text: txt });
@@ -313,10 +808,26 @@ btnShare.onclick = async e => { e.stopPropagation();
 };
 window.onerror = m => showToast('⚠ ' + m);
 
+/* Animated score counter: roll `scoreShown` up toward `scoreTarget`, with a scale-pop + colour flash.
+   Driven every frame so the number visibly climbs as flyers land. */
+function tickScore(dt){
+  scoreShown += (scoreTarget - scoreShown) * Math.min(1, dt*9);
+  if (Math.abs(scoreTarget - scoreShown) < 0.6) scoreShown = scoreTarget;
+  hudPulse = Math.max(0, hudPulse - dt*3.0);
+  hudFlash = Math.max(0, hudFlash - dt*2.4);
+  hud.textContent = '💀 ' + Math.round(scoreShown);
+  hud.style.transform = 'scale(' + (1 + hudPulse*0.30).toFixed(3) + ')';
+  if (hudFlash > 0){ const f = hudFlash;
+    hud.style.color = '#fff';
+    hud.style.textShadow = `0 0 ${(12+f*34).toFixed(0)}px #ffe27a, 0 0 ${(26+f*54).toFixed(0)}px #ff8a00, 0 0 42px #c93400`;
+  } else { hud.style.color = ''; hud.style.textShadow = ''; }
+}
 /* render */
 function render(t){
   requestAnimationFrame(render);
   const dt = Math.min(.05, (t - t0)/1000 || .016); t0 = t;
+  tickScore(dt);
+  const hudT = hudTargetCanvas();   // score-counter target for flyers (cached once per frame)
   cx.clearRect(0, 0, cv.width, cv.height);
   cx.save();
   if (shake > 0){ shake = Math.max(0, shake - dt*40);
@@ -335,6 +846,7 @@ function render(t){
     cx.fillStyle = 'rgba(255,220,160,.06)';
     cx.fillRect(x*CELL+1, y*CELL+1, CELL-2, 2);
   }
+  drawCreatures(dt);   // cosmetic creatures drift behind the pieces (above the stone floor)
   if (sel){ cx.strokeStyle = '#ffcf7d'; cx.lineWidth = 3;
     cx.strokeRect(sel.x*CELL+2, sel.y*CELL+2, CELL-4, CELL-4); }
   if (grid.length)
@@ -342,32 +854,214 @@ function render(t){
       if (grid[y][x] >= 0)
         drawPiece(grid[y][x], x*CELL + CELL/2, y*CELL + CELL/2, CELL*.42,
                   sel && sel.x === x && sel.y === y ? t*.02 : 0);
+  // radial flash blooms — bright additive gradient burst at each cleared cell (fakes ray-traced bloom)
+  for (let i = flashes.length-1; i >= 0; i--){ const f = flashes[i]; f.t += dt;
+    if (f.t > f.life){ flashes.splice(i,1); continue; }
+    const k = f.t / f.life, rad = f.r * (0.4 + k*1.2);
+    cx.save(); cx.globalCompositeOperation = 'lighter'; cx.globalAlpha = (1-k)*(1-k);
+    const fg = cx.createRadialGradient(f.x, f.y, 0, f.x, f.y, rad);
+    fg.addColorStop(0, 'rgba(255,255,240,1)'); fg.addColorStop(.35, 'rgba(255,190,90,.7)');
+    fg.addColorStop(1, 'rgba(255,120,20,0)');
+    cx.fillStyle = fg; cx.beginPath(); cx.arc(f.x, f.y, rad, 0, 7); cx.fill();
+    cx.restore();
+  }
+  // "raytrace" light beams — rotating additive rays fanning out from each crush, with a hot core flash
+  for (let i = rays.length-1; i >= 0; i--){ const R = rays[i]; R.t += dt;
+    if (R.t > R.life){ rays.splice(i,1); continue; }
+    const k = R.t / R.life, a = (1-k)*(1-k), len = R.len * (0.35 + k*1.1);
+    cx.save(); cx.globalCompositeOperation = 'lighter';
+    cx.translate(R.x, R.y); cx.rotate(R.rot + R.t*R.vr);
+    for (let j = 0; j < R.n; j++){
+      cx.rotate(Math.PI*2 / R.n);
+      const lg = cx.createLinearGradient(0, 0, len, 0);
+      lg.addColorStop(0, 'rgba(255,250,230,' + (a*.9).toFixed(3) + ')');
+      lg.addColorStop(.5, R.col);
+      lg.addColorStop(1, 'rgba(0,0,0,0)');
+      cx.globalAlpha = a * .55;
+      cx.fillStyle = lg;
+      cx.beginPath(); cx.moveTo(0, -2.5*(1-k) - .5); cx.lineTo(len, 0); cx.lineTo(0, 2.5*(1-k) + .5);
+      cx.closePath(); cx.fill();
+    }
+    // bright core flash on top of the rays
+    cx.globalAlpha = a;
+    const cg = cx.createRadialGradient(0, 0, 0, 0, 0, len*.28);
+    cg.addColorStop(0, 'rgba(255,255,250,1)'); cg.addColorStop(.5, 'rgba(255,220,140,.6)');
+    cg.addColorStop(1, 'rgba(0,0,0,0)');
+    cx.fillStyle = cg; cx.beginPath(); cx.arc(0, 0, len*.28, 0, 7); cx.fill();
+    cx.restore();
+  }
+  // knife slash streaks — bright tapered cut with a hot head sweeping corner-to-corner (additive)
+  for (let i = slashes.length-1; i >= 0; i--){ const s = slashes[i]; s.t += dt;
+    if (s.t > s.life){ slashes.splice(i,1); continue; }
+    const k = s.t / s.life, a = (1-k)*(1-k);
+    cx.save(); cx.globalCompositeOperation = 'lighter'; cx.globalAlpha = a;
+    const lg = cx.createLinearGradient(s.x1, s.y1, s.x2, s.y2);
+    lg.addColorStop(0, 'rgba(255,255,255,0)'); lg.addColorStop(.5, s.col); lg.addColorStop(1, 'rgba(255,255,255,0)');
+    cx.strokeStyle = lg; cx.lineWidth = (1-k)*11 + 2; cx.lineCap = 'round';
+    cx.beginPath(); cx.moveTo(s.x1, s.y1); cx.lineTo(s.x2, s.y2); cx.stroke();
+    const hx = s.x1 + (s.x2-s.x1)*k, hy = s.y1 + (s.y2-s.y1)*k;
+    const cg = cx.createRadialGradient(hx, hy, 0, hx, hy, CELL*.62);
+    cg.addColorStop(0, 'rgba(255,255,250,' + a.toFixed(3) + ')'); cg.addColorStop(1, 'rgba(255,220,140,0)');
+    cx.fillStyle = cg; cx.beginPath(); cx.arc(hx, hy, CELL*.62, 0, 7); cx.fill();
+    cx.restore();
+  }
+  // glowing angel wings — feathers fan up-and-outward from the cross centre, then fade (additive)
+  for (let i = wings.length-1; i >= 0; i--){ const w = wings[i]; w.t += dt;
+    if (w.t > w.life){ wings.splice(i,1); continue; }
+    const k = w.t / w.life, spread = CELL*(0.55 + k*2.6);
+    const alpha = (k < .22 ? k/.22 : 1 - (k-.22)/.78) * 0.92;
+    if (alpha <= 0) continue;
+    cx.save(); cx.globalCompositeOperation = 'lighter'; cx.translate(w.x, w.y); cx.globalAlpha = alpha;
+    for (const side of [-1, 1]){ cx.save(); cx.scale(side, 1);
+      for (let f = 0; f < 6; f++){
+        const fa = -0.12 - f*0.17, fl = spread * (1 - f*0.10);
+        const ex = Math.cos(fa)*fl, ey = Math.sin(fa)*fl;
+        const grd = cx.createLinearGradient(0, 0, ex, ey);
+        grd.addColorStop(0, 'rgba(255,250,235,' + (alpha*0.95).toFixed(3) + ')');
+        grd.addColorStop(.6, 'rgba(255,224,150,' + (alpha*0.5).toFixed(3) + ')');
+        grd.addColorStop(1, 'rgba(255,200,90,0)');
+        cx.strokeStyle = grd; cx.lineWidth = Math.max(2, spread*0.05*(1 - f*0.1)); cx.lineCap = 'round';
+        cx.beginPath(); cx.moveTo(0, 0); cx.quadraticCurveTo(ex*.5, ey*.5 - spread*0.18, ex, ey); cx.stroke();
+      }
+      cx.restore();
+    }
+    const cg = cx.createRadialGradient(0, 0, 0, 0, 0, spread*0.5);
+    cg.addColorStop(0, 'rgba(255,255,245,' + (alpha*0.8).toFixed(3) + ')'); cg.addColorStop(1, 'rgba(255,220,140,0)');
+    cx.fillStyle = cg; cx.beginPath(); cx.arc(0, 0, spread*0.5, 0, 7); cx.fill();
+    cx.restore();
+  }
   for (let i = parts.length-1; i >= 0; i--){ const p = parts[i]; p.t += dt;
     p.x += p.vx*dt; p.y += p.vy*dt; p.vy += 700*dt; p.rot += p.vr*dt;
     if (p.t > p.life){ parts.splice(i,1); continue; }
     cx.save(); cx.translate(p.x, p.y); cx.rotate(p.rot);
     cx.globalAlpha = 1 - p.t/p.life; cx.fillStyle = p.col;
-    cx.fillRect(-p.w/2, -p.w/3, p.w, p.w*0.66);
+    if (p.glow){ cx.globalCompositeOperation = 'lighter'; cx.shadowColor = p.col; cx.shadowBlur = 12;
+      cx.beginPath(); cx.arc(0, 0, p.w*.7, 0, 7); cx.fill(); }
+    else cx.fillRect(-p.w/2, -p.w/3, p.w, p.w*0.66);
     cx.restore(); cx.globalAlpha = 1;
   }
-  // shockwave rings
+  // fast glowing shockwave rings (additive, expand quicker + wider on bigger booms)
   for (let i = rings.length-1; i >= 0; i--){ const r = rings[i]; r.t += dt;
     if (r.t > r.life){ rings.splice(i,1); continue; }
-    const k = r.t / r.life;
-    cx.globalAlpha = (1-k) * .7;
-    cx.strokeStyle = k < .3 ? '#fff3c0' : '#ff9a3c'; cx.lineWidth = 5*(1-k) + 1;
-    cx.beginPath(); cx.arc(r.x, r.y, CELL*(.3 + k*1.3), 0, 7); cx.stroke();
-    cx.globalAlpha = 1;
+    const k = r.t / r.life, pw = r.power || 1;
+    cx.save(); cx.globalCompositeOperation = 'lighter'; cx.globalAlpha = (1-k) * .85;
+    cx.strokeStyle = k < .3 ? '#fff8d8' : '#ffb14c'; cx.lineWidth = (6*(1-k) + 1) * pw;
+    cx.beginPath(); cx.arc(r.x, r.y, CELL*(.25 + k*(1.5+pw*.55)), 0, 7); cx.stroke();
+    cx.restore();
+  }
+  // floating score popups — GROW in, drift upward, then fade out (~0.9s)
+  for (let i = pops.length-1; i >= 0; i--){ const p = pops[i]; p.t += dt;
+    if (p.t > p.life){ pops.splice(i,1); continue; }
+    const k = p.t / p.life;
+    const scale = k < .25 ? .45 + (k/.25)*.75 : 1.2 - (k-.25)*.15;         // pop up to 1.2x then settle
+    const alpha = k < .6 ? 1 : (1 - (k-.6)/.4);                             // hold, then fade
+    const size = Math.min(CELL*.62, CELL*.34*p.power) * scale;
+    cx.save(); cx.translate(p.x, p.y - k*CELL*.95);
+    cx.globalCompositeOperation = 'lighter'; cx.globalAlpha = alpha;
+    cx.font = '900 ' + Math.floor(size) + 'px "Segoe UI", system-ui, sans-serif';
+    cx.textAlign = 'center'; cx.textBaseline = 'middle';
+    cx.shadowColor = p.col; cx.shadowBlur = 14 * p.power;
+    cx.lineWidth = Math.max(2, size*.1); cx.strokeStyle = 'rgba(60,20,0,.8)';
+    cx.strokeText(p.txt, 0, 0);
+    cx.fillStyle = p.col; cx.fillText(p.txt, 0, 0);
+    cx.shadowBlur = 0; cx.fillStyle = 'rgba(255,255,240,.85)';
+    cx.fillText(p.txt, 0, -size*.02);                                       // hot white top layer
+    cx.restore();
+  }
+  // score flyers — pop in place, then arc toward the score counter; bump the total when they land
+  for (let i = flyers.length-1; i >= 0; i--){ const fl = flyers[i]; fl.t += dt;
+    const total = fl.pop + fl.drop + fl.fly;
+    if (fl.t >= total){ bumpScore(fl.value); flyers.splice(i,1); continue; }
+    let fx, fy, scale, alpha;
+    if (fl.t < fl.pop){                       // grow/pop at the explosion
+      const u = fl.t / fl.pop;
+      fx = fl.sx; fy = fl.sy;
+      scale = 0.4 + u*0.95; alpha = 1;
+    } else if (fl.t < fl.pop + fl.drop){      // a small gravity dip keeps the number readable in-place
+      const u = (fl.t-fl.pop) / fl.drop;
+      fx = fl.sx; fy = fl.sy + CELL*.34*u*u;
+      scale = 1.35 - u*.08; alpha = 1;
+    } else {                                  // arc/stream to the counter (ease-in = accelerate on arrival)
+      const u = (fl.t - fl.pop - fl.drop) / fl.fly, e = u*u*u;
+      const startY = fl.sy + CELL*.34, midx = (fl.sx + hudT.x)/2, ctrlY = Math.min(startY, hudT.y) - CELL*.8;
+      const mt = 1 - e;
+      fx = mt*mt*fl.sx + 2*mt*e*midx + e*e*hudT.x;
+      fy = mt*mt*startY + 2*mt*e*ctrlY + e*e*hudT.y;
+      scale = 1.35 - u*0.7; alpha = u < .75 ? 1 : (1 - (u-.75)/.25);
+    }
+    const size = Math.min(CELL*.6, CELL*.32*fl.power) * scale;
+    cx.save(); cx.translate(fx, fy);
+    cx.globalCompositeOperation = 'lighter'; cx.globalAlpha = Math.max(0, alpha);
+    cx.font = '900 ' + Math.max(8, Math.floor(size)) + 'px "Segoe UI", system-ui, sans-serif';
+    cx.textAlign = 'center'; cx.textBaseline = 'middle';
+    cx.shadowColor = fl.col; cx.shadowBlur = 16 * fl.power;
+    cx.lineWidth = Math.max(2, size*.11); cx.strokeStyle = 'rgba(60,20,0,.85)';
+    cx.strokeText('+' + fl.value, 0, 0);
+    cx.fillStyle = fl.col; cx.fillText('+' + fl.value, 0, 0);
+    cx.shadowBlur = 0; cx.fillStyle = 'rgba(255,255,240,.9)'; cx.fillText('+' + fl.value, 0, -size*.03);
+    cx.restore();
   }
   cx.restore();
-  // full-board ember flash on big crushes
-  if (flash > 0){ flash = Math.max(0, flash - dt*2.2);
+  // full-board ember + white bloom flash on big crushes (chromatic pop via additive white)
+  if (flash > 0){ flash = Math.max(0, flash - dt*2.4);
     cx.fillStyle = `rgba(255,150,40,${flash*.14})`;
     cx.fillRect(0, 0, cv.width, cv.height);
+    cx.save(); cx.globalCompositeOperation = 'lighter';
+    cx.fillStyle = `rgba(255,245,225,${flash*flash*.12})`;
+    cx.fillRect(0, 0, cv.width, cv.height); cx.restore();
   }
 }
-window.__dbg = () => ({ playing, score, moves, busy });
+window.__dbg = () => ({ playing, score, moves, busy, scoreShown:Math.round(scoreShown), scoreTarget,
+  flyers: flyers.length, lastSwaps: swapLog.slice() });
+/* Test/QA helper: trigger a crush sound for a given piece type (e.g. 4 = gem → glass) for sfx tracing. */
+window.__testCrush = (n, t) => { sfx.crush(n || 3, t == null ? 0 : t); return 'crush ' + (n||3) + ' type ' + (t==null?0:t); };
+/* Test/QA helper: force a specific special onto the board and detonate it (for on-camera verification). */
+window.__forceSpecial = (id, x, y) => {
+  x = (x == null) ? 3 : x; y = (y == null) ? 3 : y;
+  const idx = SPECIAL_DEFS.findIndex(d => d.id === id);
+  if (idx < 0 || !grid.length) return 'no such special: ' + id;
+  grid[y][x] = SP_BASE + idx; busy = true; detonateSpecial(x, y);
+  return 'fired ' + id + ' @ ' + x + ',' + y;
+};
+
+/* ── LEFT-SIDE INFO PANEL (ossuary legend) ── pieces + point values, powers, and the rules ── */
+const infoToggle = document.getElementById('infoToggle'), infoPanel = document.getElementById('infoPanel');
+const PIECE_ICONS = ['skull.png','crossbones.png','ribcage.png','femur.png','gem.png','blackcat.png','cauldron.png','heart.png'];
+const PIECE_NAMES = ['Skull','Crossbones','Ribcage','Femur','Emerald gem','Black cat','Cauldron','Heart'];
+const SPECIAL_INFO = {
+  potion:'detonates a 3×3 square', key:'moves 6 relics, detonates 6, then moves 6 again', eyeball:'purges every relic of one random type',
+  coin:'detonates 3×3 and adds a large score bonus', hand:'four bone hands scrape columns 1, 3, 5 & 7 together', megabone:'sweeps two horizontal rows',
+  ripple:'diamond blast that detonates every special', knife:'two simultaneous diagonal slashes (X)',
+  moon:'purges the board’s most common relic', cross:'bold row-and-column blast with angel wings',
+  fingerjar:'glass-shatters all four corners, then the centre',
+};
+function buildInfoPanel(){
+  let h = '<h3>Relics · points each</h3>';
+  for (let i = 0; i < PIECE_ICONS.length; i++)
+    h += `<div class="row"><img src="assets/${PIECE_ICONS[i]}" alt=""><span class="nm">${PIECE_NAMES[i]}</span><span class="pts">${PIECE_VALUES[i]}</span></div>`;
+  h += '<h3>Powers</h3>';
+  for (const d of SPECIAL_DEFS)
+    h += `<div class="row"><img src="assets/${d.file}" alt="${d.name}"><span class="ds"><b style="color:#f4e6c4">${d.name}</b> — ${SPECIAL_INFO[d.id] || d.label}</span></div>`;
+  h += '<h3>How it works</h3><ul>'
+    + '<li>Swap two adjacent relics to line up <b>3+</b> of a kind.</li>'
+    + '<li>Longer matches (4, 5, T, L) &amp; chain reactions <b>multiply</b> your score.</li>'
+    + '<li>Each relic awards its listed points × the chain number.</li>'
+    + '<li>Big plays (chain 3+, or 5+ in a line) drop a glowing <b>SPECIAL</b> relic.</li>'
+    + '<li>Swap a special into any neighbor to <b>detonate</b> its power.</li>'
+    + `<li>You get <b>${MOVES0} moves</b> — no moves left reshuffles the bones.</li>`
+    + '<li>Everyone on Earth digs the <b>same board</b> each UTC day.</li>'
+    + '</ul>';
+  infoPanel.innerHTML = h;
+}
+buildInfoPanel();
+let infoUserSet = false, infoOpen = false;
+function setInfo(open){ infoOpen = open; infoPanel.classList.toggle('hidden', !open);
+  infoToggle.textContent = open ? '📖' : '📕'; }
+function autoInfo(){ if (infoUserSet) return; setInfo(((innerWidth - CELL*N) / 2) >= 220); }
+infoToggle.onclick = e => { e.stopPropagation(); infoUserSet = true; setInfo(!infoOpen); };
+
 let bcPilot = true;
+window.__stopBot = () => { bcPilot = false; return 'bot stopped'; };   // QA: freeze the auto-player to isolate effects
 if (location.search.includes('test')){
   ['pointerdown','keydown'].forEach(ev => addEventListener(ev, e => {
     if (e.isTrusted && bcPilot){ bcPilot = false; showToast('🎮 You have control'); } }, true));
@@ -375,15 +1069,27 @@ if (location.search.includes('test')){
     (async function bot(){
       while (moves > 0 && bcPilot){
         if (!busy){
-          outer:
-          for (let y = 0; y < N; y++) for (let x = 0; x < N; x++)
-            for (const [dx,dy] of [[1,0],[0,1]]){
-              const x2 = x+dx, y2 = y+dy; if (x2 >= N || y2 >= N) continue;
-              [grid[y][x], grid[y2][x2]] = [grid[y2][x2], grid[y][x]];
-              const ok = findMatches(grid).size > 0;
-              [grid[y][x], grid[y2][x2]] = [grid[y2][x2], grid[y][x]];
-              if (ok){ await trySwap({x,y},{x:x2,y:y2}); break outer; }
+          // prefer firing a special power piece (swap it into any neighbor) to exercise abilities
+          let fired = false;
+          outerSp:
+          for (let y = 0; y < N && !fired; y++) for (let x = 0; x < N; x++)
+            if (isSpecial(grid[y][x])){
+              const nb = [[1,0],[-1,0],[0,1],[0,-1]].map(([dx,dy])=>({x:x+dx,y:y+dy}))
+                          .find(c => c.x>=0&&c.x<N&&c.y>=0&&c.y<N);
+              if (nb){ fired = true; await trySwap({x,y}, nb); break outerSp; }
             }
+          if (!fired){
+            outer:
+            for (let y = 0; y < N; y++) for (let x = 0; x < N; x++)
+              for (const [dx,dy] of [[1,0],[0,1]]){
+                const x2 = x+dx, y2 = y+dy; if (x2 >= N || y2 >= N) continue;
+                if (isSpecial(grid[y][x]) || isSpecial(grid[y2][x2])) continue;
+                [grid[y][x], grid[y2][x2]] = [grid[y2][x2], grid[y][x]];
+                const ok = findMatches(grid).size > 0;
+                [grid[y][x], grid[y2][x2]] = [grid[y2][x2], grid[y][x]];
+                if (ok){ await trySwap({x,y},{x:x2,y:y2}); break outer; }
+              }
+          }
         }
         await sleep(400);
       }
@@ -393,7 +1099,10 @@ if (location.search.includes('test')){
 resize();
 refreshMenu(false);
 setInterval(()=>{ if (!playing) dailyEl.textContent = fmtReset(); }, 30000);
+scheduleCreature();   // begin the ambient-creature drift loop (no-op under reduced motion)
 requestAnimationFrame(render);
+/* Assets are declared/preloaded and the splash is on screen → tell the portal loading is done. */
+PSDK.ready.then(()=>{ try { PSDK.loaded(); } catch(e){} });
 </script>
 </body>
 </html>

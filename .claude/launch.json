@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "bonecrush",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8379"],
+      "port": 8379
+    }
+  ]
+}
