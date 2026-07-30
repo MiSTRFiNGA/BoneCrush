@@ -1,0 +1,15 @@
+{
+  "appId": "com.empiregames.bonecrush",
+  "appName": "Bone Crush",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "ios": {
+    "contentInset": "automatic",
+    "preferredContentMode": "mobile"
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}
