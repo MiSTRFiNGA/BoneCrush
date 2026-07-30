@@ -218,17 +218,48 @@ const store = {
    LEVELS[i].{objective,target,type,count,moves,stars} generically, so
    dropping in Grok's balanced curve here is a pure data swap. */
 const LEVELS = [
-  // GROK CURVE DROPS IN HERE — replace this placeholder array with the tuned campaign table.
-  { objective:'score',     target:600,  moves:20, stars:[600,1000,1500] },
-  { objective:'clearType', type:0,      count:10, moves:20, stars:[10,16,22] },   // 0 = skull
-  { objective:'drop',      count:6,     moves:22, stars:[6,10,15] },
-  { objective:'score',     target:1000, moves:20, stars:[1000,1600,2300] },
-  { objective:'tiles',     count:10,    moves:24, stars:[10,16,24] },
-  { objective:'clearType', type:4,      count:14, moves:22, stars:[14,20,28] },   // 4 = gem
-  { objective:'score',     target:1500, moves:22, stars:[1500,2300,3200] },
-  { objective:'drop',      count:9,     moves:24, stars:[9,14,20] },
-  { objective:'tiles',     count:16,    moves:26, stars:[16,24,34] },
-  { objective:'score',     target:2200, moves:24, stars:[2200,3300,4600] },
+  // Grok's 40-level curve (campaign_curve_40.json, 2026-07-29) — L1-5 nearly unloseable
+  // (the conversion metric), 6-15 gentle, 16-30 real difficulty, 31-40 hard but never a wall.
+  { objective:'score',     target:400,  moves:30, stars:[400,700,1100] },
+  { objective:'clearType', type:0, count:8,  moves:30, stars:[8,14,20] },
+  { objective:'drop',      count:4,  moves:30, stars:[4,7,11] },
+  { objective:'score',     target:700,  moves:30, stars:[700,1100,1600] },
+  { objective:'tiles',     count:6,  moves:32, stars:[6,10,16] },
+  { objective:'clearType', type:4, count:10, moves:28, stars:[10,16,24] },
+  { objective:'score',     target:1100, moves:28, stars:[1100,1700,2400] },
+  { objective:'drop',      count:6,  moves:28, stars:[6,10,15] },
+  { objective:'tiles',     count:10, moves:28, stars:[10,16,24] },
+  { objective:'score',     target:1500, moves:28, stars:[1500,2300,3200] },
+  { objective:'clearType', type:5, count:12, moves:26, stars:[12,18,26] },
+  { objective:'drop',      count:8,  moves:26, stars:[8,12,18] },
+  { objective:'score',     target:2000, moves:26, stars:[2000,3000,4200] },
+  { objective:'tiles',     count:14, moves:26, stars:[14,22,32] },
+  { objective:'clearType', type:7, count:14, moves:26, stars:[14,22,30] },
+  { objective:'score',     target:2800, moves:26, stars:[2800,4000,5600] },
+  { objective:'drop',      count:10, moves:24, stars:[10,15,22] },
+  { objective:'tiles',     count:18, moves:24, stars:[18,28,40] },
+  { objective:'clearType', type:0, count:18, moves:24, stars:[18,28,40] },
+  { objective:'score',     target:3600, moves:24, stars:[3600,5200,7200] },
+  { objective:'clearType', type:6, count:16, moves:24, stars:[16,24,34] },
+  { objective:'drop',      count:12, moves:24, stars:[12,18,26] },
+  { objective:'tiles',     count:22, moves:22, stars:[22,34,48] },
+  { objective:'score',     target:4500, moves:24, stars:[4500,6500,9000] },
+  { objective:'clearType', type:4, count:20, moves:22, stars:[20,30,42] },
+  { objective:'drop',      count:14, moves:22, stars:[14,22,30] },
+  { objective:'tiles',     count:26, moves:22, stars:[26,40,56] },
+  { objective:'score',     target:5600, moves:22, stars:[5600,8000,11000] },
+  { objective:'clearType', type:1, count:22, moves:22, stars:[22,34,48] },
+  { objective:'score',     target:6500, moves:22, stars:[6500,9200,12800] },
+  { objective:'drop',      count:16, moves:22, stars:[16,24,34] },
+  { objective:'tiles',     count:30, moves:22, stars:[30,46,64] },
+  { objective:'clearType', type:2, count:24, moves:20, stars:[24,36,50] },
+  { objective:'score',     target:7800, moves:22, stars:[7800,11000,15000] },
+  { objective:'clearType', type:3, count:24, moves:20, stars:[24,36,50] },
+  { objective:'drop',      count:18, moves:20, stars:[18,28,40] },
+  { objective:'tiles',     count:34, moves:20, stars:[34,52,72] },
+  { objective:'score',     target:9200, moves:20, stars:[9200,13000,18000] },
+  { objective:'clearType', type:0, count:28, moves:20, stars:[28,42,58] },
+  { objective:'score',     target:11000, moves:22, stars:[11000,15500,21000] },
 ];
 
 /* ── PROGRESSION SAVE ── one versioned localStorage object. loadSave() always
@@ -398,7 +429,9 @@ function specialIdx(t){ return t - SP_BASE; }
    have every special available — per the brief, nothing should feel removed
    outside the campaign. window.__forceSpecial (QA/debug) intentionally
    bypasses this — it's a test hook, not a spawn path. */
-const GATED_SPECIAL_UNLOCK = { key: 1, hand: 3, megabone: 5, fingerjar: 7 };
+// Grok's unlock_schedule (campaign_curve_40.json): Fingerjar@L3, Megabone@L8, Hand@L15, Voodoo@L22
+// (1-based human level numbers) -> 0-based stars-array index here. id 'key' == Voodoo Doll.
+const GATED_SPECIAL_UNLOCK = { fingerjar: 2, megabone: 7, hand: 14, key: 21 };
 function isSpecialUnlocked(id){
   if (MODE !== 'campaign') return true;
   const req = GATED_SPECIAL_UNLOCK[id];
