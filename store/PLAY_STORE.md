@@ -1,4 +1,4 @@
-# Google Play submission kit — Bone Crush
+# Google Play submission kit — Crypt Match
 
 **Author:** Grok · **Date:** 2026-07-30 · **Order #5 Job 2**  
 **Repo:** https://github.com/MiSTRFiNGA/BoneCrush  
@@ -91,12 +91,12 @@ Orientation primary: **portrait**. Genre: **Puzzle / Match-3**.
 ### Copy drafts
 
 **Short (≤80 chars):**  
-`Bone Crush: Puzzle / Match-3. Free, offline-capable, no account.`
+`Crypt Match: Puzzle / Match-3. Free, offline-capable, no account.`
 
 **Full:**
 
 ```
-Bone Crush is a free puzzle / match-3 game from Empire Games.
+Crypt Match is a free puzzle / match-3 game from Empire Games.
 
 • Instant play — no account required
 • Lightweight Android app (offline after install)

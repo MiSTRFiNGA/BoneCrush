@@ -1,8 +1,8 @@
-# 📦 Bone Crush — NEW LISTING store submission pack (copy-paste ready)
+# 📦 Crypt Match — NEW LISTING store submission pack (copy-paste ready)
 
 **Author:** Grok · **Date:** 2026-07-30 (Order #3 Job 4)  
 **Scope:** new-listing metadata / art-spec / checklist only. **Do NOT open or edit `index.html`.**  
-**Why new listing:** CrazyGames Basic Launch already rejected “Bone Crush” (desktop 4/15, mobile 6/15; need ≥9).  
+**Why new listing:** CrazyGames Basic Launch already rejected “Crypt Match” (desktop 4/15, mobile 6/15; need ≥9).  
 **Hard CG rule:** a failed title **cannot be patched and resubmitted** — it must return as a **new game** with a new listing. The old listing is spent.
 
 Sources: campaign curve in `campaign_curve_40.json`; size audit in `store/RELAUNCH_KIT.md`; Skull Drift format mirror.
@@ -29,7 +29,7 @@ Prior measurement (2026-07-30, pre-final content): CG zip **1.44 MB / 47 files**
 
 ## New title treatment / name candidates
 
-Old name **“Bone Crush” is spent** on CG. Listing must read as a **genuinely new game**, not “Bone Crush 2”.
+Old name **“Crypt Match” is spent** on CG. Listing must read as a **genuinely new game**, not “Crypt Match 2”.
 
 | # | Candidate | Why |
 |---|-----------|-----|
@@ -115,7 +115,7 @@ Tips: chain matches for multipliers, save specials for packed boards, and chase 
 
 **Optional:** `cover_4x3.png` 800×600 · `icon_512.png` · landscape + portrait **15s** H.264 **no-audio** preview (hook match → special → campaign goal → end card with **new title**).
 
-**Rules:** Do not reuse rejected “Bone Crush” lockup. No stolen IP. Safe margin ~5% from edges.
+**Rules:** Do not reuse rejected “Crypt Match” lockup. No stolen IP. Safe margin ~5% from edges.
 
 ---
 
@@ -123,7 +123,7 @@ Tips: chain matches for multipliers, save specials for packed boards, and chase 
 
 ### Process
 
-- [ ] Create a **new** game in CG developer portal (do **not** patch the failed Bone Crush listing)
+- [ ] Create a **new** game in CG developer portal (do **not** patch the failed Crypt Match listing)
 - [ ] Eric picks final title from candidates above
 - [ ] Claude cold-open + 40-level curve + progression confirmed in playable build
 - [ ] `python build.py` fresh artifacts
