@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Bone Crush — the daily ossuary puzzle</title>
+<title>Crypt Match — the daily ossuary puzzle</title>
 <meta name="description" content="Match skulls and bones in the catacomb. Everyone on Earth gets the identical board today — top the score before midnight resets it.">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./assets/icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Bone Crush">
+<meta name="apple-mobile-web-app-title" content="Crypt Match">
 <meta name="theme-color" content="#2b1d12">
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
@@ -55,7 +55,9 @@
   #overlay { inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
              background:radial-gradient(ellipse at center, rgba(18,12,16,.6) 0%, rgba(6,4,7,.92) 100%);
              text-align:center; padding:20px; }
-  /* Official BONE CRUSH title logo (Eric's painted banner). Master copy: art_src/title_logo.png
+  /* Title logo (Eric's painted banner). Renamed Bone Crush -> Crypt Match 2026-07-30; the art
+     asset itself still visually reads "BONE CRUSH" pending a repainted banner — alt text below
+     already says CRYPT MATCH for a11y/SEO. Master copy: art_src/title_logo.png
      (5230x768) — THIS is the game logo for the splash, store pages, adverts and promo art.
      assets/title_logo.jpg is the web-optimized copy. Subtle idle float/glow, readable at any width. */
   #overlay h1.logo { display:flex; align-items:center; justify-content:center;
@@ -143,7 +145,7 @@ window.PSDK = window.PSDK || { ready: Promise.resolve(), loaded(){}, start(){}, 
      case beginGame() fires immediately without waiting for a click here, or (b) after a daily run ends,
      showing the score/streak/share result exactly as before. -->
 <div class="ui hidden" id="overlay">
-  <h1 class="logo"><img src="assets/title_logo.jpg" alt="BONE CRUSH — a grim match-3 adventure"></h1>
+  <h1 class="logo"><img src="assets/title_logo.jpg" alt="CRYPT MATCH — a grim match-3 adventure"></h1>
   <div class="tag">Match the remains. Everyone on Earth digs the <b>same catacomb board</b> today.</div>
   <div id="resultBlock" class="hidden"><div class="big" id="scoreLine"></div></div>
   <div class="stats">
@@ -160,7 +162,7 @@ window.PSDK = window.PSDK || { ready: Promise.resolve(), loaded(){}, start(){}, 
      The game always cold-opens straight into a live board (campaign frontier level for a fresh
      player, or their current level on return); this panel is purely for switching/pausing. -->
 <div class="ui hidden" id="modeSelect">
-  <h1 class="logo"><img src="assets/title_logo.jpg" alt="BONE CRUSH"></h1>
+  <h1 class="logo"><img src="assets/title_logo.jpg" alt="CRYPT MATCH"></h1>
   <div class="tag" id="msTag">Switch your dig.</div>
   <div class="modeGrid">
     <button class="modeBtn hidden" id="btnResume">▶ RESUME<span class="modeSub">Back to where you left off</span></button>
@@ -189,7 +191,7 @@ window.PSDK = window.PSDK || { ready: Promise.resolve(), loaded(){}, start(){}, 
 </div>
 <script>
 "use strict";
-/* BONE CRUSH — daily-seeded match-3. No backend; same board worldwide per UTC day. */
+/* CRYPT MATCH (formerly Bone Crush) — daily-seeded match-3. No backend; same board worldwide per UTC day. */
 const N = 8, TYPES = 8, MOVES0 = 30;   // 8 normal types (asset drop 02 added cat/cauldron/heart)
 const cv = document.getElementById('game'), cx = cv.getContext('2d');
 let CELL = 64, PAD = 0, TOPPAD = 56, DPR = 1;
@@ -245,6 +247,10 @@ function adjacentDay(a, b){ if (!a) return false;
   const pb = Date.UTC(Math.floor(b/10000), Math.floor(b/100)%100-1, b%100);
   return pb - pa === 86400000; }
 const store = {
+  // NOTE: 'bonecrush_' prefix + the bc_* keys below are legacy-but-load-bearing localStorage
+  // keys from the original "Bone Crush" name. Renaming them would wipe every existing player's
+  // saved progress/streak, so they are kept exactly as-is despite the 2026-07-30 rename to
+  // "Crypt Match" — see BoneCrush -> Crypt Match rename notes.
   get k(){ return 'bonecrush_' + utcDayKey(); },
   load(){ return { all:+localStorage.bc_all||0, today:+localStorage[this.k]||0 }; },
   save(sc){ const dk = utcDayKey();
@@ -1237,7 +1243,7 @@ function bugReport(){
   const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'bonecrush_report_' + Date.now() + '.json';
+  a.download = 'cryptmatch_report_' + Date.now() + '.json';
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
   showToast('🐞 Report downloaded');
@@ -1334,7 +1340,7 @@ function beginGame(){
 }
 ['click','touchend'].forEach(ev => btnGo.addEventListener(ev, e => { e.stopPropagation(); e.preventDefault(); beginGame(); }));
 btnShare.onclick = async e => { e.stopPropagation();
-  const txt = `💀 I crushed ${score} on today's Bone Crush board — everyone digs the SAME catacomb today. Beat me: ${location.href.split('?')[0]}`;
+  const txt = `💀 I crushed ${score} on today's Crypt Match board — everyone digs the SAME catacomb today. Beat me: ${location.href.split('?')[0]}`;
   try { if (navigator.share) await navigator.share({ text: txt });
         else { await navigator.clipboard.writeText(txt); showToast('Challenge copied'); } } catch(err){}
 };

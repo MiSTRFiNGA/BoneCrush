@@ -1,9 +1,11 @@
-// Bone Crush — offline shell cache. Cache-first with runtime population: the
-// first load fetches from network and stores a copy; every load after that
+// Crypt Match (formerly Bone Crush) — offline shell cache. Cache-first with runtime population:
+// the first load fetches from network and stores a copy; every load after that
 // (including offline) is served from cache. Bump CACHE_VERSION to force a
 // refresh of the shell on the next visit.
-const CACHE_VERSION = 'v1';
-const CACHE_NAME = `bonecrush-shell-${CACHE_VERSION}`;
+// Cache name bumped to cryptmatch-shell-v2 for the 2026-07-30 rename — old bonecrush-shell-v1
+// cache is dropped automatically by the activate handler below (keys().filter(k !== CACHE_NAME)).
+const CACHE_VERSION = 'v2';
+const CACHE_NAME = `cryptmatch-shell-${CACHE_VERSION}`;
 const PRECACHE_URLS = ['./', './index.html', './manifest.webmanifest'];
 
 self.addEventListener('install', (event) => {

@@ -1,6 +1,6 @@
 {
-  "name": "Bone Crush — the daily ossuary puzzle",
-  "short_name": "Bone Crush",
+  "name": "Crypt Match — the daily ossuary puzzle",
+  "short_name": "Crypt Match",
   "description": "Match skulls and bones in the catacomb. Everyone on Earth gets the identical board today — top the score before midnight resets it.",
   "start_url": "./",
   "scope": "./",
