@@ -1,0 +1,16 @@
+{
+  "name": "Bone Crush — the daily ossuary puzzle",
+  "short_name": "Bone Crush",
+  "description": "Match skulls and bones in the catacomb. Everyone on Earth gets the identical board today — top the score before midnight resets it.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "background_color": "#0a0705",
+  "theme_color": "#2b1d12",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "./assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./assets/icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

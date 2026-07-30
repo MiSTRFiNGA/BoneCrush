@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Bone Crush — the daily ossuary puzzle</title>
 <meta name="description" content="Match skulls and bones in the catacomb. Everyone on Earth gets the identical board today — top the score before midnight resets it.">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./assets/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Bone Crush">
+<meta name="theme-color" content="#2b1d12">
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   html,body { width:100%; height:100%; overflow:hidden; background:radial-gradient(circle at 50% 30%, #2b1d12 0%, #150e08 55%, #0a0705 100%); touch-action:none;
@@ -1787,6 +1793,18 @@ scheduleCreature();   // begin the ambient-creature drift loop (no-op under redu
 requestAnimationFrame(render);
 /* Assets are declared/preloaded and the splash is on screen → tell the portal loading is done. */
 PSDK.ready.then(()=>{ try { PSDK.loaded(); } catch(e){} });
+</script>
+
+<!-- PWA offline shell. Guarded so it can never throw/break startup when this file is
+     served flat inside a CrazyGames/Poki portal iframe (no https, no SW support, etc). -->
+<script>
+try {
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    });
+  }
+} catch (e) {}
 </script>
 </body>
 </html>
