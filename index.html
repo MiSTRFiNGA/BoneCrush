@@ -187,6 +187,36 @@ window.PSDK = window.PSDK || { ready: Promise.resolve(), loaded(){}, start(){}, 
 const N = 8, TYPES = 8, MOVES0 = 30;   // 8 normal types (asset drop 02 added cat/cauldron/heart)
 const cv = document.getElementById('game'), cx = cv.getContext('2d');
 let CELL = 64, PAD = 0, TOPPAD = 56, DPR = 1;
+/* PERF: the stone-floor board background (per-cell linear gradient + dirt speckle + highlight line)
+   used to be rebuilt from scratch — including a fresh createLinearGradient() per cell — on EVERY
+   render() frame, unconditionally, whether or not anything on the board was even animating. Gradient
+   rasterization cost scales with the filled area, which scales with CELL^2, so this got dramatically
+   more expensive on large/unfolded screens (bigger CELL) even though the board content never changes
+   between resizes. Fix: pre-render it once into an offscreen canvas and just drawImage() it each frame;
+   rebuild only when CELL, DPR, or the active cosmetic skin actually changes (see boardBgIsStale()). */
+let boardBG = document.createElement('canvas'), boardBGCx = boardBG.getContext('2d'), boardBGKey = '';
+function boardBgIsStale(){
+  return boardBGKey !== (CELL + ':' + DPR + ':' + (save.cosmetics.activeSkin % BOARD_SKINS.length));
+}
+function rebuildBoardBG(){
+  boardBG.width = CELL * N * DPR; boardBG.height = CELL * N * DPR;
+  boardBGCx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const skin = BOARD_SKINS[save.cosmetics.activeSkin % BOARD_SKINS.length] || BOARD_SKINS[0];
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++){
+    const g = boardBGCx.createLinearGradient(x*CELL, y*CELL, x*CELL, y*CELL+CELL);
+    const pair = (x+y) % 2 ? skin.b : skin.a;
+    g.addColorStop(0, pair[0]); g.addColorStop(1, pair[1]);
+    boardBGCx.fillStyle = g;
+    boardBGCx.fillRect(x*CELL+1, y*CELL+1, CELL-2, CELL-2);
+    // dirt speckle (stable per cell)
+    const sr = mulberry32(x*73 + y*131);
+    boardBGCx.fillStyle = 'rgba(0,0,0,.25)';
+    for (let k = 0; k < 4; k++) boardBGCx.fillRect(x*CELL + 4 + sr()*(CELL-10), y*CELL + 4 + sr()*(CELL-10), 2, 2);
+    boardBGCx.fillStyle = 'rgba(255,220,160,.06)';
+    boardBGCx.fillRect(x*CELL+1, y*CELL+1, CELL-2, 2);
+  }
+  boardBGKey = CELL + ':' + DPR + ':' + (save.cosmetics.activeSkin % BOARD_SKINS.length);
+}
 function resize(){
   DPR = Math.min(devicePixelRatio || 1, 1.5);
   const s = Math.min(innerWidth, innerHeight - 56);
@@ -195,6 +225,7 @@ function resize(){
   cv.style.width = CELL*N + 'px'; cv.style.height = CELL*N + 'px';
   cv.style.marginTop = Math.max(48, (innerHeight - CELL*N) / 2) + 'px';
   cx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  if (typeof BOARD_SKINS !== 'undefined') rebuildBoardBG();   // CELL changed -> cached bg is stale
   if (typeof autoInfo === 'function') autoInfo();
 }
 addEventListener('resize', ()=>{ resize(); });
@@ -626,6 +657,25 @@ function updateModePanelRetention(){
   el.innerHTML = h;
 }
 
+/* PERF: SPECIAL pieces used to allocate+rasterize a fresh createRadialGradient() EVERY frame for
+   EVERY special on the board, at a radius (r*1.5) that scales with CELL — expensive on large screens.
+   Fix: pre-render the glow (at pulse=1, the max radius) once per (specialIdx, CELL) into an offscreen
+   canvas, then just drawImage() it each frame, uniformly scaled by the current pulse. Scaling a raster
+   image is a cheap GPU blit; the result is pixel-equivalent to a freshly-rasterized gradient at that
+   scaled radius because a radial gradient's relative stop positions are scale-invariant. */
+let specialGlowCache = [], specialGlowCacheCell = -1;
+function rebuildSpecialGlowCache(r){
+  specialGlowCache = SPECIAL_DEFS.map(def => {
+    const size = Math.max(2, Math.ceil(r*3));
+    const c = document.createElement('canvas'); c.width = size; c.height = size;
+    const gctx = c.getContext('2d');
+    const gg = gctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, r*1.5);
+    gg.addColorStop(0, def.glow); gg.addColorStop(.4, def.glow + '88'); gg.addColorStop(1, 'rgba(0,0,0,0)');
+    gctx.fillStyle = gg; gctx.beginPath(); gctx.arc(size/2, size/2, r*1.5, 0, 7); gctx.fill();
+    return c;
+  });
+  specialGlowCacheCell = r;
+}
 function drawPiece(t, x, y, r, wob){
   cx.save(); cx.translate(x, y); if (wob) cx.rotate(Math.sin(wob)*.08);
   // drop shadow + under-glow make relics pop off the stone
@@ -635,12 +685,11 @@ function drawPiece(t, x, y, r, wob){
   if (isSpecial(t)){
     const def = SPECIAL_DEFS[specialIdx(t)], spr = SP_SPRITES[specialIdx(t)];
     const pulse = 0.6 + 0.4*Math.sin(t0*0.006 + x*0.03 + y*0.03);
+    if (specialGlowCacheCell !== r) rebuildSpecialGlowCache(r);
     cx.save(); cx.globalCompositeOperation = 'lighter';
-    const gg = cx.createRadialGradient(0, 0, 0, 0, 0, r*1.5*pulse);
-    gg.addColorStop(0, def.glow); gg.addColorStop(.4, def.glow + '88');
-    gg.addColorStop(1, 'rgba(0,0,0,0)');
+    const glowImg = specialGlowCache[specialIdx(t)], gs = glowImg.width;
     cx.globalAlpha = .55 + .3*pulse;
-    cx.fillStyle = gg; cx.beginPath(); cx.arc(0, 0, r*1.5*pulse, 0, 7); cx.fill();
+    cx.drawImage(glowImg, -gs/2*pulse, -gs/2*pulse, gs*pulse, gs*pulse);
     cx.restore();
     if (spr && !spr._failed && spr.complete && spr.naturalWidth)
       cx.drawImage(spr, -r*1.02, -r*1.05, r*2.04, r*2.04);
@@ -1404,10 +1453,21 @@ function tickScore(dt){
     hud.style.textShadow = `0 0 ${(12+f*34).toFixed(0)}px #ffe27a, 0 0 ${(26+f*54).toFixed(0)}px #ff8a00, 0 0 42px #c93400`;
   } else { hud.style.color = ''; hud.style.textShadow = ''; }
 }
+/* PERF: shadowBlur is notoriously expensive to rasterize on mobile GPUs, and (like the gradients
+   above) its cost scales with the blurred area — worse on large screens. Rather than hardcode a
+   screen-size cutoff (fragile — what about a large but powerful tablet, or a small but weak phone?),
+   track a smoothed FPS from the render loop itself and only pay for shadowBlur glow effects while the
+   device is actually keeping up; on a struggling frame rate the effects fall back to their existing
+   flat-fill look (no shadowBlur call at all) instead of chasing a blur the device can't afford.
+   ?perf=1 also draws a small on-canvas HUD with this + the frame-time stats used for verification. */
+let fpsAvg = 60;
+const PERF_FLAG = typeof location !== 'undefined' && /[?&]perf=1\b/.test(location.search);
 /* render */
 function render(t){
   requestAnimationFrame(render);
   const dt = Math.min(.05, (t - t0)/1000 || .016); t0 = t;
+  if (dt > 0) fpsAvg += (Math.min(120, 1/dt) - fpsAvg) * 0.08;   // smoothed, so one hitch doesn't flip the gate
+  const glowOK = fpsAvg >= 50;   // allow shadowBlur glow only while comfortably at/near 60fps
   tickScore(dt);
   const hudT = hudTargetCanvas();   // score-counter target for flyers (cached once per frame)
   cx.clearRect(0, 0, cv.width, cv.height);
@@ -1415,21 +1475,12 @@ function render(t){
   if (shake > 0){ shake = Math.max(0, shake - dt*40);
     cx.translate((Math.random()-.5)*shake, (Math.random()-.5)*shake); }
   // stone cells with beveled depth — palette is the player's active board skin (B2 star-chest reward;
-  // index 0 is the original hardcoded look, so a fresh/default save renders pixel-identical to before)
-  const skin = BOARD_SKINS[save.cosmetics.activeSkin % BOARD_SKINS.length] || BOARD_SKINS[0];
-  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++){
-    const g = cx.createLinearGradient(x*CELL, y*CELL, x*CELL, y*CELL+CELL);
-    const pair = (x+y) % 2 ? skin.b : skin.a;
-    g.addColorStop(0, pair[0]); g.addColorStop(1, pair[1]);
-    cx.fillStyle = g;
-    cx.fillRect(x*CELL+1, y*CELL+1, CELL-2, CELL-2);
-    // dirt speckle (stable per cell)
-    const sr = mulberry32(x*73 + y*131);
-    cx.fillStyle = 'rgba(0,0,0,.25)';
-    for (let k = 0; k < 4; k++) cx.fillRect(x*CELL + 4 + sr()*(CELL-10), y*CELL + 4 + sr()*(CELL-10), 2, 2);
-    cx.fillStyle = 'rgba(255,220,160,.06)';
-    cx.fillRect(x*CELL+1, y*CELL+1, CELL-2, 2);
-  }
+  // index 0 is the original hardcoded look, so a fresh/default save renders pixel-identical to before).
+  // PERF: pre-rendered once into boardBG (see rebuildBoardBG above) instead of 64 fresh
+  // createLinearGradient() calls every single frame — this is the single biggest render-loop cost on
+  // large screens, since each gradient's fill area (and thus rasterization cost) scales with CELL^2.
+  if (boardBgIsStale()) rebuildBoardBG();
+  cx.drawImage(boardBG, 0, 0, CELL*N, CELL*N);
   drawCreatures(dt);   // cosmetic creatures drift behind the pieces (above the stone floor)
   if (sel){ cx.strokeStyle = '#ffcf7d'; cx.lineWidth = 3;
     cx.strokeRect(sel.x*CELL+2, sel.y*CELL+2, CELL-4, CELL-4); }
@@ -1534,7 +1585,8 @@ function render(t){
     if (p.t > p.life){ parts.splice(i,1); continue; }
     cx.save(); cx.translate(p.x, p.y); cx.rotate(p.rot);
     cx.globalAlpha = 1 - p.t/p.life; cx.fillStyle = p.col;
-    if (p.glow){ cx.globalCompositeOperation = 'lighter'; cx.shadowColor = p.col; cx.shadowBlur = 12;
+    if (p.glow){ cx.globalCompositeOperation = 'lighter'; cx.shadowColor = p.col;
+      cx.shadowBlur = glowOK ? 12 : 0;   // PERF: skip the (expensive, area-scaling) blur under load
       cx.beginPath(); cx.arc(0, 0, p.w*.7, 0, 7); cx.fill(); }
     else cx.fillRect(-p.w/2, -p.w/3, p.w, p.w*0.66);
     cx.restore(); cx.globalAlpha = 1;
@@ -1559,7 +1611,7 @@ function render(t){
     cx.globalCompositeOperation = 'lighter'; cx.globalAlpha = alpha;
     cx.font = '900 ' + Math.floor(size) + 'px "Segoe UI", system-ui, sans-serif';
     cx.textAlign = 'center'; cx.textBaseline = 'middle';
-    cx.shadowColor = p.col; cx.shadowBlur = 14 * p.power;
+    cx.shadowColor = p.col; cx.shadowBlur = glowOK ? 14 * p.power : 0;   // PERF: gated, see render() top
     cx.lineWidth = Math.max(2, size*.1); cx.strokeStyle = 'rgba(60,20,0,.8)';
     cx.strokeText(p.txt, 0, 0);
     cx.fillStyle = p.col; cx.fillText(p.txt, 0, 0);
@@ -1593,7 +1645,7 @@ function render(t){
     cx.globalCompositeOperation = 'lighter'; cx.globalAlpha = Math.max(0, alpha);
     cx.font = '900 ' + Math.max(8, Math.floor(size)) + 'px "Segoe UI", system-ui, sans-serif';
     cx.textAlign = 'center'; cx.textBaseline = 'middle';
-    cx.shadowColor = fl.col; cx.shadowBlur = 16 * fl.power;
+    cx.shadowColor = fl.col; cx.shadowBlur = glowOK ? 16 * fl.power : 0;   // PERF: gated, see render() top
     cx.lineWidth = Math.max(2, size*.11); cx.strokeStyle = 'rgba(60,20,0,.85)';
     cx.strokeText('+' + fl.value, 0, 0);
     cx.fillStyle = fl.col; cx.fillText('+' + fl.value, 0, 0);
@@ -1608,6 +1660,15 @@ function render(t){
     cx.save(); cx.globalCompositeOperation = 'lighter';
     cx.fillStyle = `rgba(255,245,225,${flash*flash*.12})`;
     cx.fillRect(0, 0, cv.width, cv.height); cx.restore();
+  }
+  // ?perf=1 — on-canvas perf HUD used to verify the render-cost fixes above; no effect otherwise.
+  if (PERF_FLAG){
+    cx.save(); cx.setTransform(1, 0, 0, 1, 0, 0);
+    cx.fillStyle = 'rgba(0,0,0,.6)'; cx.fillRect(4, 4, 190, 46);
+    cx.fillStyle = fpsAvg >= 50 ? '#8f8' : '#f88'; cx.font = '12px monospace'; cx.textAlign = 'left'; cx.textBaseline = 'top';
+    cx.fillText('fps ' + fpsAvg.toFixed(1) + '  frame ' + (dt*1000).toFixed(1) + 'ms', 10, 10);
+    cx.fillText('CELL ' + CELL + '  glowOK ' + glowOK, 10, 26);
+    cx.restore();
   }
 }
 window.__dbg = () => ({ mode: MODE, playing, score, moves, busy, scoreShown:Math.round(scoreShown), scoreTarget,
