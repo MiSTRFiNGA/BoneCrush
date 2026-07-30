@@ -11,7 +11,7 @@ SRC = r"D:\Dev\BoneCrush\art_src\pieces_sheet.png"
 SRC2 = r"D:\Dev\BoneCrush\art_src\pieces_sheet_02.png"
 ASSETS = r"D:\Dev\BoneCrush\assets"
 TMP = r"D:\Dev\BoneCrush\art_src\_tmp_crops"
-EVID = r"F:\OneDrive\Desktop\Tests\BoneCrush_gfx"
+EVID = r"C:\Users\MiSTRFiNGA\Desktop\Tests\BoneCrush_gfx"
 
 CANVAS = 128
 PAD = 6          # px of transparent padding inside canvas

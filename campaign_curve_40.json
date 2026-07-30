@@ -1,0 +1,151 @@
+{
+  "game": "Bone Crush",
+  "date": "2026-07-29",
+  "author": "Grok",
+  "status": "DROP-IN for const LEVELS = [...] — Claude replaces placeholder array only",
+  "board": { "N": 8, "relic_types": 8, "base_moves_reference": 30 },
+  "piece_values": {
+    "note": "matches live PIECE_VALUES",
+    "order": ["Skull", "Crossbones", "Ribcage", "Femur", "Emerald", "Black cat", "Cauldron", "Heart"],
+    "values": [20, 10, 10, 10, 15, 13, 12, 15]
+  },
+  "objective_types": {
+    "score": { "fields": ["objective", "target", "moves", "stars"] },
+    "clearType": { "fields": ["objective", "type", "count", "moves", "stars"], "type_index": "0=Skull … 7=Heart" },
+    "drop": { "fields": ["objective", "count", "moves", "stars"], "meaning": "drop relic to bottom N times" },
+    "tiles": { "fields": ["objective", "count", "moves", "stars"], "meaning": "break crypt tiles" }
+  },
+  "curve_shape": {
+    "1-5": "nearly unloseable — IS the conversion metric (competent inside 60s)",
+    "6-15": "gentle",
+    "16-30": "real difficulty",
+    "31-40": "hard but never a wall that ends a session"
+  },
+  "LEVELS": [
+    { "level": 1,  "objective": "score",     "target": 400,  "moves": 30, "stars": [400, 700, 1100] },
+    { "level": 2,  "objective": "clearType", "type": 0, "count": 8,  "moves": 30, "stars": [8, 14, 20] },
+    { "level": 3,  "objective": "drop",      "count": 4,  "moves": 30, "stars": [4, 7, 11] },
+    { "level": 4,  "objective": "score",     "target": 700,  "moves": 30, "stars": [700, 1100, 1600] },
+    { "level": 5,  "objective": "tiles",     "count": 6,  "moves": 32, "stars": [6, 10, 16] },
+
+    { "level": 6,  "objective": "clearType", "type": 4, "count": 10, "moves": 28, "stars": [10, 16, 24] },
+    { "level": 7,  "objective": "score",     "target": 1100, "moves": 28, "stars": [1100, 1700, 2400] },
+    { "level": 8,  "objective": "drop",      "count": 6,  "moves": 28, "stars": [6, 10, 15] },
+    { "level": 9,  "objective": "tiles",     "count": 10, "moves": 28, "stars": [10, 16, 24] },
+    { "level": 10, "objective": "score",     "target": 1500, "moves": 28, "stars": [1500, 2300, 3200] },
+    { "level": 11, "objective": "clearType", "type": 5, "count": 12, "moves": 26, "stars": [12, 18, 26] },
+    { "level": 12, "objective": "drop",      "count": 8,  "moves": 26, "stars": [8, 12, 18] },
+    { "level": 13, "objective": "score",     "target": 2000, "moves": 26, "stars": [2000, 3000, 4200] },
+    { "level": 14, "objective": "tiles",     "count": 14, "moves": 26, "stars": [14, 22, 32] },
+    { "level": 15, "objective": "clearType", "type": 7, "count": 14, "moves": 26, "stars": [14, 22, 30] },
+
+    { "level": 16, "objective": "score",     "target": 2800, "moves": 26, "stars": [2800, 4000, 5600] },
+    { "level": 17, "objective": "drop",      "count": 10, "moves": 24, "stars": [10, 15, 22] },
+    { "level": 18, "objective": "tiles",     "count": 18, "moves": 24, "stars": [18, 28, 40] },
+    { "level": 19, "objective": "clearType", "type": 0, "count": 18, "moves": 24, "stars": [18, 28, 40] },
+    { "level": 20, "objective": "score",     "target": 3600, "moves": 24, "stars": [3600, 5200, 7200] },
+    { "level": 21, "objective": "clearType", "type": 6, "count": 16, "moves": 24, "stars": [16, 24, 34] },
+    { "level": 22, "objective": "drop",      "count": 12, "moves": 24, "stars": [12, 18, 26] },
+    { "level": 23, "objective": "tiles",     "count": 22, "moves": 22, "stars": [22, 34, 48] },
+    { "level": 24, "objective": "score",     "target": 4500, "moves": 24, "stars": [4500, 6500, 9000] },
+    { "level": 25, "objective": "clearType", "type": 4, "count": 20, "moves": 22, "stars": [20, 30, 42] },
+    { "level": 26, "objective": "drop",      "count": 14, "moves": 22, "stars": [14, 22, 30] },
+    { "level": 27, "objective": "tiles",     "count": 26, "moves": 22, "stars": [26, 40, 56] },
+    { "level": 28, "objective": "score",     "target": 5600, "moves": 22, "stars": [5600, 8000, 11000] },
+    { "level": 29, "objective": "clearType", "type": 1, "count": 22, "moves": 22, "stars": [22, 34, 48] },
+    { "level": 30, "objective": "score",     "target": 6500, "moves": 22, "stars": [6500, 9200, 12800] },
+
+    { "level": 31, "objective": "drop",      "count": 16, "moves": 22, "stars": [16, 24, 34] },
+    { "level": 32, "objective": "tiles",     "count": 30, "moves": 22, "stars": [30, 46, 64] },
+    { "level": 33, "objective": "clearType", "type": 2, "count": 24, "moves": 20, "stars": [24, 36, 50] },
+    { "level": 34, "objective": "score",     "target": 7800, "moves": 22, "stars": [7800, 11000, 15000] },
+    { "level": 35, "objective": "clearType", "type": 3, "count": 24, "moves": 20, "stars": [24, 36, 50] },
+    { "level": 36, "objective": "drop",      "count": 18, "moves": 20, "stars": [18, 28, 40] },
+    { "level": 37, "objective": "tiles",     "count": 34, "moves": 20, "stars": [34, 52, 72] },
+    { "level": 38, "objective": "score",     "target": 9200, "moves": 20, "stars": [9200, 13000, 18000] },
+    { "level": 39, "objective": "clearType", "type": 0, "count": 28, "moves": 20, "stars": [28, 42, 58] },
+    { "level": 40, "objective": "score",     "target": 11000, "moves": 22, "stars": [11000, 15500, 21000] }
+  ],
+  "LEVELS_drop_in": [
+    { "objective": "score",     "target": 400,  "moves": 30, "stars": [400, 700, 1100] },
+    { "objective": "clearType", "type": 0, "count": 8,  "moves": 30, "stars": [8, 14, 20] },
+    { "objective": "drop",      "count": 4,  "moves": 30, "stars": [4, 7, 11] },
+    { "objective": "score",     "target": 700,  "moves": 30, "stars": [700, 1100, 1600] },
+    { "objective": "tiles",     "count": 6,  "moves": 32, "stars": [6, 10, 16] },
+    { "objective": "clearType", "type": 4, "count": 10, "moves": 28, "stars": [10, 16, 24] },
+    { "objective": "score",     "target": 1100, "moves": 28, "stars": [1100, 1700, 2400] },
+    { "objective": "drop",      "count": 6,  "moves": 28, "stars": [6, 10, 15] },
+    { "objective": "tiles",     "count": 10, "moves": 28, "stars": [10, 16, 24] },
+    { "objective": "score",     "target": 1500, "moves": 28, "stars": [1500, 2300, 3200] },
+    { "objective": "clearType", "type": 5, "count": 12, "moves": 26, "stars": [12, 18, 26] },
+    { "objective": "drop",      "count": 8,  "moves": 26, "stars": [8, 12, 18] },
+    { "objective": "score",     "target": 2000, "moves": 26, "stars": [2000, 3000, 4200] },
+    { "objective": "tiles",     "count": 14, "moves": 26, "stars": [14, 22, 32] },
+    { "objective": "clearType", "type": 7, "count": 14, "moves": 26, "stars": [14, 22, 30] },
+    { "objective": "score",     "target": 2800, "moves": 26, "stars": [2800, 4000, 5600] },
+    { "objective": "drop",      "count": 10, "moves": 24, "stars": [10, 15, 22] },
+    { "objective": "tiles",     "count": 18, "moves": 24, "stars": [18, 28, 40] },
+    { "objective": "clearType", "type": 0, "count": 18, "moves": 24, "stars": [18, 28, 40] },
+    { "objective": "score",     "target": 3600, "moves": 24, "stars": [3600, 5200, 7200] },
+    { "objective": "clearType", "type": 6, "count": 16, "moves": 24, "stars": [16, 24, 34] },
+    { "objective": "drop",      "count": 12, "moves": 24, "stars": [12, 18, 26] },
+    { "objective": "tiles",     "count": 22, "moves": 22, "stars": [22, 34, 48] },
+    { "objective": "score",     "target": 4500, "moves": 24, "stars": [4500, 6500, 9000] },
+    { "objective": "clearType", "type": 4, "count": 20, "moves": 22, "stars": [20, 30, 42] },
+    { "objective": "drop",      "count": 14, "moves": 22, "stars": [14, 22, 30] },
+    { "objective": "tiles",     "count": 26, "moves": 22, "stars": [26, 40, 56] },
+    { "objective": "score",     "target": 5600, "moves": 22, "stars": [5600, 8000, 11000] },
+    { "objective": "clearType", "type": 1, "count": 22, "moves": 22, "stars": [22, 34, 48] },
+    { "objective": "score",     "target": 6500, "moves": 22, "stars": [6500, 9200, 12800] },
+    { "objective": "drop",      "count": 16, "moves": 22, "stars": [16, 24, 34] },
+    { "objective": "tiles",     "count": 30, "moves": 22, "stars": [30, 46, 64] },
+    { "objective": "clearType", "type": 2, "count": 24, "moves": 20, "stars": [24, 36, 50] },
+    { "objective": "score",     "target": 7800, "moves": 22, "stars": [7800, 11000, 15000] },
+    { "objective": "clearType", "type": 3, "count": 24, "moves": 20, "stars": [24, 36, 50] },
+    { "objective": "drop",      "count": 18, "moves": 20, "stars": [18, 28, 40] },
+    { "objective": "tiles",     "count": 34, "moves": 20, "stars": [34, 52, 72] },
+    { "objective": "score",     "target": 9200, "moves": 20, "stars": [9200, 13000, 18000] },
+    { "objective": "clearType", "type": 0, "count": 28, "moves": 20, "stars": [28, 42, 58] },
+    { "objective": "score",     "target": 11000, "moves": 22, "stars": [11000, 15500, 21000] }
+  ],
+  "unlock_schedule": {
+    "note": "Map special ids to live SPECIAL_DEFS / shop. Early unlocks = conversion toys; late = retention prestige.",
+    "specials": [
+      { "id": "fingerjar", "name": "Finger Jar", "unlock_campaign_level": 3,  "role": "early agency — 60s competence" },
+      { "id": "megabone",  "name": "Megabone",   "unlock_campaign_level": 8,  "role": "horizontal clear for drop/tile levels" },
+      { "id": "hand",      "name": "Hand",       "unlock_campaign_level": 15, "role": "column control mid-curve" },
+      { "id": "voodoo",    "name": "Voodoo",     "unlock_campaign_level": 22, "role": "multi-phase board rewrite; late power fantasy" }
+    ],
+    "optional_board_powers": [
+      { "id": "potion",  "unlock_campaign_level": 5 },
+      { "id": "moon",    "unlock_campaign_level": 12 },
+      { "id": "cross",   "unlock_campaign_level": 18 },
+      { "id": "knife",   "unlock_campaign_level": 28 },
+      { "id": "ripple",  "unlock_campaign_level": 35 }
+    ]
+  },
+  "retention_economy": {
+    "problem": "CG mobile D1 was 0.00% — nothing to return for",
+    "daily_login": {
+      "day_1": { "reward": "fingerjar x1", "note": "even if already unlocked — free charge" },
+      "day_2": { "reward": "+5 moves next campaign level" },
+      "day_3": { "reward": "megabone x1" },
+      "day_4": { "reward": "hand x1" },
+      "day_5": { "reward": "voodoo x1" },
+      "day_6_plus": { "reward": "random special x1 + 1 star-chest key", "streak_cap": 14 }
+    },
+    "daily_quests": [
+      { "id": "clear_any_3", "text": "Clear 3 campaign levels", "reward": "special charge x1" },
+      { "id": "three_star_1", "text": "Earn 3 stars on any level", "reward": "+1 unlock skip token (bankable, max 2)" },
+      { "id": "endless_2k", "text": "Score 2000 in Endless", "reward": "login-streak freeze (1 day)" }
+    ],
+    "star_chest": "Every 9 stars opens a chest: 70% special charge, 20% +3 moves token, 10% cosmetic board skin",
+    "ftue": "Cold-open Level 1 (no menu wall). Fail on L1–5 grants free retry with +5 moves once per level per day."
+  },
+  "rationale": {
+    "L1-5": "30 moves + low targets ≈ one obvious match sequence within 60s; score L1 uses Skull-heavy natural clears",
+    "moves_floor": "Never below 20 — walls that force rage-quit kill playtime AND retention",
+    "stars": "1★ = objective complete (conversion), 2★ ≈ efficient clear, 3★ = skilled / special use (retention grind)",
+    "mix": "Rotate score/clearType/drop/tiles so campaign teaches every system before L16 raises pressure"
+  }
+}

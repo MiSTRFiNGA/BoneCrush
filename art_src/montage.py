@@ -4,7 +4,7 @@ import os
 from PIL import Image, ImageDraw, ImageFont
 
 ASSETS = r"D:\Dev\BoneCrush\assets"
-EVID = r"F:\OneDrive\Desktop\Tests\BoneCrush_gfx"
+EVID = r"C:\Users\MiSTRFiNGA\Desktop\Tests\BoneCrush_gfx"
 NAMES = ["skull", "femur", "crossbones", "ribcage", "gem",
          "hand", "key", "coin", "potion", "eyeball", "femur_alt"]
 CELL = 128

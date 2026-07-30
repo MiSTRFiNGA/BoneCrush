@@ -99,6 +99,11 @@
             font-weight:800; font-size:15px; }
   .lsCell.locked { color:#7a6a55; cursor:not-allowed; opacity:.6; }
   .lsCell:not(.locked):hover { border-color:rgba(255,180,80,.7); box-shadow:0 0 16px rgba(255,140,0,.3); }
+  /* B2: unlock-skip-token-eligible cell — visually distinct from a plain locked cell */
+  .lsCell.skip { border-color:rgba(120,255,170,.55); color:#d8ffe4; }
+  .lsCell.skip:hover { border-color:rgba(120,255,170,.9); box-shadow:0 0 16px rgba(120,255,170,.35); }
+  /* B2 retention summary line inside the mode panel — quiet, read-only, never a gate */
+  #msRetention { margin-top:16px; font-size:clamp(10px,1.8vw,13px); color:#c9a86a; line-height:1.7; text-align:center; }
   .lsNum { font-size:18px; }
   .lsStars { font-size:12px; letter-spacing:1px; color:#ffd24a; }
   .back { margin-top:18px; font-size:clamp(12px,2vw,15px); padding:8px 22px; border-radius:26px;
@@ -157,6 +162,9 @@ window.PSDK = window.PSDK || { ready: Promise.resolve(), loaded(){}, start(){}, 
     <button class="modeBtn" id="btnEndless">♾️ ENDLESS<span class="modeSub">Dig till the moves run dry</span></button>
     <button class="modeBtn" id="btnDaily">📅 DAILY<span class="modeSub">Same board as everyone, today</span></button>
   </div>
+  <!-- B2 retention summary — read-only, refreshed on every open via updateModePanelRetention().
+       Purely informational ("always-visible next thing"); never blocks reaching the buttons above. -->
+  <div class="modeSub" id="msRetention"></div>
 </div>
 <!-- Campaign level picker — reached via the CAMPAIGN tab or the 🏠 panel. Never shown on load. -->
 <div class="ui hidden" id="levelSelect">
@@ -267,22 +275,52 @@ const LEVELS = [
    later version, or a save from before campaign existed) is filled from
    defaults rather than the whole object being discarded — progress must
    survive a schema bump, never get wiped by one. */
-const SAVE_KEY = 'bc_save_v1', SAVE_VERSION = 1;
+const SAVE_KEY = 'bc_save_v1', SAVE_VERSION = 2;
+/* v2 (Phase B2 — RETENTION, campaign_curve_40.json retention_economy block) adds:
+   login (daily-login streak, separate from the legacy bc_streak/bc_lastday daily-board streak —
+   that pair is untouched so the Daily overlay keeps working exactly as before), retention
+   (streak-freeze charges), quests (3 daily quests + progress), chest (star-chest claim tier),
+   inventory (special charges / banked bonus moves / unlock-skip tokens), cosmetics (board skins),
+   and ftue (per-level-per-day free-retry grants for L1-5). A save with NO v2 fields (a real v1
+   save) upgrades below by filling every new field from defaults — campaign.unlocked/stars and
+   endlessBest are never touched by this migration. */
 function defaultSave(){
-  return { version: SAVE_VERSION, campaign: { unlocked: 1, stars: new Array(LEVELS.length).fill(0) }, endlessBest: 0 };
+  return {
+    version: SAVE_VERSION,
+    campaign: { unlocked: 1, stars: new Array(LEVELS.length).fill(0) },
+    endlessBest: 0,
+    login: { streak: 0, lastDay: 0 },
+    retention: { streakFreezeCount: 0 },
+    quests: { day: 0, done: { clear_any_3:false, three_star_1:false, endless_2k:false }, clearCount: 0 },
+    chest: { claimedTiers: 0 },
+    inventory: { charges: { fingerjar:0, megabone:0, hand:0, key:0 }, movesBonus: 0, unlockSkipTokens: 0 },
+    cosmetics: { skinsOwned: 1, activeSkin: 0 },
+    ftue: {},
+  };
 }
 function loadSave(){
   let raw = null;
   try { raw = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch(e){ raw = null; }
   const base = defaultSave();
   if (!raw || typeof raw !== 'object') return base;
-  const merged = { ...base, ...raw, campaign: { ...base.campaign, ...(raw.campaign||{}) } };
+  const merged = { ...base, ...raw,
+    campaign: { ...base.campaign, ...(raw.campaign||{}) },
+    login: { ...base.login, ...(raw.login||{}) },
+    retention: { ...base.retention, ...(raw.retention||{}) },
+    quests: { ...base.quests, ...(raw.quests||{}), done: { ...base.quests.done, ...((raw.quests||{}).done||{}) } },
+    chest: { ...base.chest, ...(raw.chest||{}) },
+    inventory: { ...base.inventory, ...(raw.inventory||{}),
+                 charges: { ...base.inventory.charges, ...((raw.inventory||{}).charges||{}) } },
+    cosmetics: { ...base.cosmetics, ...(raw.cosmetics||{}) },
+    ftue: { ...(raw.ftue||{}) },
+  };
   if (!Array.isArray(merged.campaign.stars) || merged.campaign.stars.length !== LEVELS.length){
     const old = Array.isArray(merged.campaign.stars) ? merged.campaign.stars : [];
     merged.campaign.stars = LEVELS.map((_,i)=> old[i] || 0);   // keep whatever stars line up, default rest
   }
   merged.campaign.unlocked = Math.min(Math.max(1, merged.campaign.unlocked||1), LEVELS.length);
   merged.endlessBest = +merged.endlessBest || 0;
+  merged.cosmetics.activeSkin = Math.min(Math.max(0, merged.cosmetics.activeSkin||0), Math.max(0, (merged.cosmetics.skinsOwned||1)-1));
   merged.version = SAVE_VERSION;
   return merged;
 }
@@ -443,6 +481,151 @@ function allowedSpecialIndices(){
   return idxs.length ? idxs : [0];   // never return an empty pool
 }
 function randomSpecialIndex(r){ const pool = allowedSpecialIndices(); return pool[Math.floor(r()*pool.length)]; }
+
+/* ── RETENTION ECONOMY (Phase B2, campaign_curve_40.json → retention_economy) ────────────────
+   D1 retention was 0.00% on mobile — "nothing to come back for". Everything below grants
+   currency (special charges, banked bonus moves, unlock-skip tokens, streak freezes, board
+   skins) via non-blocking toasts and a read-only summary line in the already-existing mode
+   panel — NEVER a blocking screen on load (hard constraint from the brief). All state lives in
+   the versioned `save` object (see defaultSave/loadSave above) so it survives reloads and merges
+   forward cleanly across schema bumps. Daily mode's shared board/economy is never touched by any
+   of this (the whole point of the daily board is that it's identical for everyone). */
+const BOARD_SKINS = [   // cosmetic board-tile palettes; index 0 = the original look, unchanged
+  { a:['#463321','#2b2015'], b:['#3a2a1a','#241a10'] },   // 0 default catacomb stone
+  { a:['#2a3a46','#15242b'], b:['#1a2e3a','#101c24'] },   // 1 crypt-blue
+  { a:['#462a2a','#2b1515'], b:['#3a1a1a','#241010'] },   // 2 ember-red
+  { a:['#2a4630','#15271a'], b:['#1a3a24','#102410'] },   // 3 moss-green
+];
+function totalStars(){ return save.campaign.stars.reduce((a,b)=>a+(b||0), 0); }
+function randomAllowedSpecialId(){ return SPECIAL_DEFS[Math.floor(Math.random()*SPECIAL_DEFS.length)].id; }
+function grantSpecialCharge(id){ save.inventory.charges[id] = (save.inventory.charges[id]||0) + 1; }
+function grantBoardSkin(){
+  const owned = save.cosmetics.skinsOwned||1;
+  if (owned < BOARD_SKINS.length){ save.cosmetics.skinsOwned = owned + 1; save.cosmetics.activeSkin = owned; }
+  else save.inventory.movesBonus = (save.inventory.movesBonus||0) + 3;   // every skin owned → reward never fizzles
+}
+/* Star-chest reward table: 70% special charge / 20% +3 moves token / 10% cosmetic board skin.
+   Used both when a 9-star tier is crossed AND when a day-6+ login streak key opens one directly. */
+function awardChestReward(sourceLabel){
+  const roll = Math.random();
+  let msg;
+  if (roll < 0.70){ const id = randomAllowedSpecialId(); grantSpecialCharge(id);
+    msg = (SPECIAL_DEFS.find(d=>d.id===id)||{}).name + ' charge'; }
+  else if (roll < 0.90){ save.inventory.movesBonus = (save.inventory.movesBonus||0) + 3; msg = '+3 moves token'; }
+  else { grantBoardSkin(); msg = 'a new board skin'; }
+  showToast(`🎁 ${sourceLabel} — ${msg}!`, 3200);
+}
+function checkStarChests(){
+  while (totalStars() >= (save.chest.claimedTiers + 1) * 9){
+    save.chest.claimedTiers++;
+    awardChestReward('⭐ Star chest');
+  }
+}
+/* Daily quests reset once per UTC day; call before reading/mutating quest state anywhere. */
+function ensureDailyQuests(){
+  const dk = utcDayKey();
+  if (save.quests.day === dk) return;
+  save.quests.day = dk;
+  save.quests.done = { clear_any_3:false, three_star_1:false, endless_2k:false };
+  save.quests.clearCount = 0;
+}
+function questClearProgress(){   // "Clear 3 campaign levels" → special charge x1 (counts every win, incl. replays)
+  ensureDailyQuests();
+  if (save.quests.done.clear_any_3) return;
+  save.quests.clearCount = (save.quests.clearCount||0) + 1;
+  if (save.quests.clearCount >= 3){
+    save.quests.done.clear_any_3 = true;
+    grantSpecialCharge(randomAllowedSpecialId());
+    showToast('📋 Quest complete — Clear 3 levels → special charge!', 3200);
+  }
+}
+function questThreeStarProgress(stars){   // "Earn 3 stars on any level" → +1 unlock-skip token, bankable max 2
+  ensureDailyQuests();
+  if (save.quests.done.three_star_1 || stars < 3) return;
+  save.quests.done.three_star_1 = true;
+  save.inventory.unlockSkipTokens = Math.min(2, (save.inventory.unlockSkipTokens||0) + 1);
+  showToast('📋 Quest complete — 3★ level → unlock-skip token!', 3200);
+}
+function questEndlessProgress(sc){   // "Score 2000 in Endless" → login-streak freeze x1 (capped at 3)
+  ensureDailyQuests();
+  if (save.quests.done.endless_2k || sc < 2000) return;
+  save.quests.done.endless_2k = true;
+  save.retention.streakFreezeCount = Math.min(3, (save.retention.streakFreezeCount||0) + 1);
+  showToast('📋 Quest complete — 2000 in Endless → streak freeze!', 3200);
+}
+/* Daily-login streak + reward. Reuses utcDayKey()/adjacentDay() (no new date math): a non-
+   adjacent-day login only resets the streak UNLESS a freeze charge is banked, in which case the
+   freeze is spent and the streak is preserved (kept simple — exact-gap-length bridging would need
+   new date arithmetic beyond adjacentDay(), which the brief asks to avoid). */
+function grantDailyLoginReward(day){
+  let msg;
+  if (day === 1){ grantSpecialCharge('fingerjar'); msg = 'Finger Jar charge (free, even if already unlocked)'; }
+  else if (day === 2){ save.inventory.movesBonus = (save.inventory.movesBonus||0) + 5; msg = '+5 moves next campaign level'; }
+  else if (day === 3){ grantSpecialCharge('megabone'); msg = 'Megabone charge'; }
+  else if (day === 4){ grantSpecialCharge('hand'); msg = 'Bone Hand charge'; }
+  else if (day === 5){ grantSpecialCharge('key'); msg = 'Voodoo Doll charge'; }
+  else { grantSpecialCharge(randomAllowedSpecialId()); msg = 'random special + star-chest key'; }
+  showToast(`🔥 Day ${save.login.streak} login streak — ${msg}!`, 3200);
+  if (day >= 6) awardChestReward('🔑 Streak key');   // "1 star-chest key" — opened immediately, no keyring UI
+}
+function checkDailyLogin(){
+  const dk = utcDayKey();
+  if (save.login.lastDay === dk) return;   // already claimed today
+  const prev = save.login.lastDay;
+  let streak = save.login.streak || 0;
+  if (!prev) streak = 1;                                    // very first login ever
+  else if (adjacentDay(prev, dk)) streak = Math.min(14, streak + 1);
+  else if ((save.retention.streakFreezeCount||0) > 0){
+    save.retention.streakFreezeCount--;
+    streak = Math.min(14, (streak||1) + 1);
+    showToast('🧊 Streak freeze used — your login streak is protected!', 3200);
+  } else streak = 1;                                        // reset
+  save.login.streak = streak; save.login.lastDay = dk;
+  grantDailyLoginReward(streak <= 5 ? streak : 6);
+  persistSave();
+}
+/* Consumes banked rewards into the CURRENT run only — never touches Daily mode (shared board). */
+function applyPendingRewardsToRun(){
+  if (MODE === 'daily') return;
+  if (MODE === 'campaign' && save.inventory.movesBonus > 0){
+    const bonus = save.inventory.movesBonus; save.inventory.movesBonus = 0;
+    moves += bonus; persistSave();
+    showToast(`✨ +${bonus} bonus moves banked from rewards!`, 3000);
+  }
+  const MAX_CHARGE_PLACEMENTS = 2;   // cap so a big charge stash can't trivialize a level's objective
+  let placed = 0;
+  for (const id of Object.keys(save.inventory.charges)){
+    while (save.inventory.charges[id] > 0 && placed < MAX_CHARGE_PLACEMENTS){
+      const idx = SPECIAL_DEFS.findIndex(d => d.id === id);
+      if (idx < 0){ save.inventory.charges[id] = 0; break; }
+      const cell = randomBoardCells(1, t => t >= 0 && !isSpecial(t))[0];
+      if (cell == null) break;
+      const x = cell % N, y = (cell - x) / N;
+      grid[y][x] = SP_BASE + idx;
+      save.inventory.charges[id]--; placed++;
+    }
+  }
+  if (placed > 0){ persistSave(); showToast(`🎁 ${placed} banked special${placed>1?'s':''} placed on the board!`, 3000); }
+}
+function ftueKey(idx){ return utcDayKey() + ':' + idx; }
+function ftueAvailable(idx){ return idx <= 4 && !save.ftue[ftueKey(idx)]; }
+function consumeFtue(idx){ save.ftue[ftueKey(idx)] = true; persistSave(); }
+/* Read-only summary shown ONLY inside the already-existing, non-blocking mode panel — refreshed
+   each time the panel opens. This is the "always-visible next thing" for retention, never a gate. */
+function updateModePanelRetention(){
+  const el = document.getElementById('msRetention'); if (!el) return;
+  ensureDailyQuests();
+  const rem = totalStars() % 9, toChest = rem === 0 ? 9 : 9 - rem;
+  const questsDone = ['clear_any_3','three_star_1','endless_2k'].filter(k=>save.quests.done[k]).length;
+  const chargeTxt = Object.entries(save.inventory.charges)
+    .filter(([,n])=>n>0).map(([id,n])=>`${(SPECIAL_DEFS.find(d=>d.id===id)||{}).name||id} x${n}`).join(', ');
+  let h = `🔥 Streak ${save.login.streak||0} (cap 14) &nbsp; ⭐ ${toChest} to next chest &nbsp; 📋 ${questsDone}/3 quests today`;
+  if (chargeTxt) h += `<br>🎒 Ready to use: ${chargeTxt}`;
+  if (save.inventory.movesBonus) h += `<br>✨ +${save.inventory.movesBonus} bonus moves queued`;
+  if (save.inventory.unlockSkipTokens) h += `<br>🔓 ${save.inventory.unlockSkipTokens} unlock-skip token(s) — use in Campaign`;
+  el.innerHTML = h;
+}
+
 function drawPiece(t, x, y, r, wob){
   cx.save(); cx.translate(x, y); if (wob) cx.rotate(Math.sin(wob)*.08);
   // drop shadow + under-glow make relics pop off the stone
@@ -866,7 +1049,7 @@ function sleep(ms){ return new Promise(res => setTimeout(res, ms)); }
    byte the original `if (moves <= 0) gameOver();` check. */
 function handleRunEndChecks(){
   if (MODE === 'daily'){ if (moves <= 0) gameOver(); return; }
-  if (MODE === 'endless'){ checkEndlessRamp(); if (moves <= 0) endlessGameOver(); return; }
+  if (MODE === 'endless'){ checkEndlessRamp(); questEndlessProgress(score); if (moves <= 0) endlessGameOver(); return; }
   if (MODE === 'campaign'){
     if (isCampaignObjectiveMet()) campaignLevelWon();
     else if (moves <= 0) campaignLevelLost();
@@ -908,6 +1091,7 @@ function campaignLevelWon(){
   if (stars > (save.campaign.stars[campaignLevelIdx]||0)) save.campaign.stars[campaignLevelIdx] = stars;
   if (campaignLevelIdx + 2 > save.campaign.unlocked)
     save.campaign.unlocked = Math.min(LEVELS.length, campaignLevelIdx + 2);
+  questClearProgress(); questThreeStarProgress(stars); checkStarChests();   // B2 retention hooks
   persistSave();
   setTimeout(()=> showRunEnd({ kind:'campaign', won:true, score, stars, levelIdx: campaignLevelIdx }), 700);
 }
@@ -915,7 +1099,8 @@ function campaignLevelLost(){
   playing = false; scoreTarget = score; flyers.length = 0;
   try { PSDK.stop(); } catch(e){}
   sfx.over();
-  setTimeout(()=> showRunEnd({ kind:'campaign', won:false, score, levelIdx: campaignLevelIdx }), 700);
+  const ftue = ftueAvailable(campaignLevelIdx);   // B2: L1-5 fail → offer a free retry with +5 moves
+  setTimeout(()=> showRunEnd({ kind:'campaign', won:false, score, levelIdx: campaignLevelIdx, ftue }), 700);
 }
 /* Frontier level for cold-open / resume: the first unlocked level not yet CLEARED (0 stars) —
    a level a player already beat (even with only 1-2 stars) is done, so resuming should never
@@ -1040,7 +1225,7 @@ function hudDraw(){
     objHud.classList.add('hidden');
   }
 }
-function showToast(t){ toast.textContent = t; toast.style.opacity = 1; setTimeout(()=>toast.style.opacity = 0, 2000); }
+function showToast(t, ms){ toast.textContent = t; toast.style.opacity = 1; setTimeout(()=>toast.style.opacity = 0, ms||2000); }
 function fmtReset(){ const ms = msToReset(); return `New board in ${Math.floor(ms/3.6e6)}h ${Math.floor(ms%3.6e6/6e4)}m`; }
 function refreshMenu(done){
   const st = store.load();
@@ -1065,6 +1250,7 @@ function start(){
   else if (MODE === 'endless'){ grid = makeBoard((Date.now() ^ 0xE0D1E55) >>> 0); endlessTier = 0; endlessTarget = ENDLESS_START_TARGET; }
   else { grid = campaignBoard(campaignLevelIdx, campaignAttempt); campaignState = initCampaignState(campaignLevelIdx, campaignAttempt); }
   score = 0; moves = (MODE === 'campaign') ? LEVELS[campaignLevelIdx].moves : MOVES0;
+  applyPendingRewardsToRun();   // B2: bank moves/special charges earned from login/quests/chests
   sel = null; busy = false; playing = true;
   scoreShown = 0; scoreTarget = 0; hudPulse = 0; hudFlash = 0;
   flyers.length = 0; wings.length = 0; slashes.length = 0; pops.length = 0;
@@ -1115,6 +1301,7 @@ function openModePanel(){
   [overlay, levelSelect, runEnd].forEach(el => el.classList.add('hidden'));
   btnResume.classList.toggle('hidden', !wasPlaying);
   modeSelect.classList.remove('hidden');
+  updateModePanelRetention();   // B2: refresh the streak/quests/chest/inventory summary line
 }
 bindTap(menuBtn, openModePanel);
 bindTap(btnResume, ()=>{ modeSelect.classList.add('hidden'); playing = true; });
@@ -1127,14 +1314,23 @@ function showLevelSelect(){
   let h = '';
   for (let i = 0; i < LEVELS.length; i++){
     const unlocked = i < save.campaign.unlocked, stars = save.campaign.stars[i]||0;
-    const starStr = unlocked ? ('★★★'.slice(0,stars) + '☆☆☆'.slice(0, 3-stars)) : '🔒';
-    h += `<button class="lsCell${unlocked?'':' locked'}" data-i="${i}"${unlocked?'':' disabled'}>` +
+    // B2: the ONE locked level right at the frontier can be opened early with a banked unlock-skip
+    // token (earned from the "3★ on any level" daily quest, bankable up to 2) — never a gate, just
+    // an optional shortcut surfaced only inside this already-existing, tap-to-open picker.
+    const canSkip = !unlocked && i === save.campaign.unlocked && (save.inventory.unlockSkipTokens||0) > 0;
+    const starStr = unlocked ? ('★★★'.slice(0,stars) + '☆☆☆'.slice(0, 3-stars)) : (canSkip ? '🔓' : '🔒');
+    h += `<button class="lsCell${(unlocked||canSkip)?'':' locked'}${canSkip?' skip':''}" data-i="${i}" data-skip="${canSkip?'1':'0'}"${(unlocked||canSkip)?'':' disabled'}>` +
          `<span class="lsNum">${i+1}</span><span class="lsStars">${starStr}</span></button>`;
   }
   const lsGrid = document.getElementById('lsGrid');
   lsGrid.innerHTML = h;
   lsGrid.querySelectorAll('.lsCell').forEach(btn => { if (btn.disabled) return;
-    bindTap(btn, ()=>{ campaignLevelIdx = +btn.dataset.i; campaignAttempt = 0; MODE = 'campaign';
+    bindTap(btn, ()=>{
+      if (btn.dataset.skip === '1'){
+        save.inventory.unlockSkipTokens--; save.campaign.unlocked = Math.max(save.campaign.unlocked, +btn.dataset.i + 1);
+        persistSave(); showToast('🔓 Unlock-skip token used!'); showLevelSelect(); return;
+      }
+      campaignLevelIdx = +btn.dataset.i; campaignAttempt = 0; MODE = 'campaign';
       levelSelect.classList.add('hidden'); beginGame(); }); });
 }
 /* Builds the win/lose/endless-out popup. RETRY / NEXT LEVEL / DIG AGAIN is always the first,
@@ -1154,7 +1350,11 @@ function showRunEnd(o){
   } else if (o.kind === 'campaign' && o.won){
     reTitle.textContent = `⚱️ Level ${o.levelIdx+1} cleared!`;
     reStars.textContent = '★★★'.slice(0,o.stars) + '☆☆☆'.slice(0, 3-o.stars);
-    reStats.innerHTML = `<div class="stat"><div class="v">${o.score}</div><div class="l">Score</div></div>`;
+    // B2 "always show the next thing": stars-to-next-chest keeps a retention hook visible right
+    // at the moment of success, without ever blocking the primary NEXT LEVEL / Replay actions.
+    const rem = totalStars() % 9, toChest = rem === 0 ? 9 : 9 - rem;
+    reStats.innerHTML = `<div class="stat"><div class="v">${o.score}</div><div class="l">Score</div></div>` +
+      `<div class="stat"><div class="v">${toChest}★</div><div class="l">to next chest</div></div>`;
     const hasNext = o.levelIdx+1 < LEVELS.length;
     reBtns.innerHTML = (hasNext ? `<button class="go" id="reNext">NEXT LEVEL</button>` : '') +
       `<button class="back" id="reRetry2">Replay</button><button class="back" id="reMenu">‹ Levels</button>`;
@@ -1164,9 +1364,20 @@ function showRunEnd(o){
   } else if (o.kind === 'campaign'){
     reTitle.textContent = '☠ Out of moves';
     reStats.innerHTML = `<div class="stat"><div class="v">${o.score}</div><div class="l">Score</div></div>`;
-    // RETRY first and prominent — instant retry, never bounced back to a menu.
-    reBtns.innerHTML = `<button class="go" id="reRetry">RETRY</button><button class="back" id="reMenu">‹ Levels</button>`;
-    bindTap(document.getElementById('reRetry'), ()=>{ campaignAttempt++; runEnd.classList.add('hidden'); beginGame(); });
+    // B2 FTUE: L1-5 fail offers a free retry with +5 bonus moves (once per level per day) as the
+    // prominent primary action; every other level (or an already-used grant today) falls back to
+    // the original plain RETRY. Either way RETRY-equivalent stays first and prominent — instant
+    // retry, never bounced back to a menu.
+    if (o.ftue){
+      reBtns.innerHTML = `<button class="go" id="reRetry">🩹 FREE RETRY +5 MOVES</button><button class="back" id="reMenu">‹ Levels</button>`;
+      bindTap(document.getElementById('reRetry'), ()=>{
+        consumeFtue(o.levelIdx); save.inventory.movesBonus = (save.inventory.movesBonus||0) + 5; persistSave();
+        campaignAttempt++; runEnd.classList.add('hidden'); beginGame();
+      });
+    } else {
+      reBtns.innerHTML = `<button class="go" id="reRetry">RETRY</button><button class="back" id="reMenu">‹ Levels</button>`;
+      bindTap(document.getElementById('reRetry'), ()=>{ campaignAttempt++; runEnd.classList.add('hidden'); beginGame(); });
+    }
     bindTap(document.getElementById('reMenu'), ()=>{ runEnd.classList.add('hidden'); showLevelSelect(); });
   }
 }
@@ -1175,6 +1386,7 @@ function showRunEnd(o){
    live, playable board with zero clicks and no ad gate. */
 function resumeMode(){
   MODE = 'campaign'; campaignAttempt = 0; campaignLevelIdx = campaignFrontierLevel();
+  ensureDailyQuests(); checkDailyLogin();   // B2: non-blocking toast only — never delays the first paint
   start();
 }
 
@@ -1202,11 +1414,13 @@ function render(t){
   cx.save();
   if (shake > 0){ shake = Math.max(0, shake - dt*40);
     cx.translate((Math.random()-.5)*shake, (Math.random()-.5)*shake); }
-  // stone cells with beveled depth
+  // stone cells with beveled depth — palette is the player's active board skin (B2 star-chest reward;
+  // index 0 is the original hardcoded look, so a fresh/default save renders pixel-identical to before)
+  const skin = BOARD_SKINS[save.cosmetics.activeSkin % BOARD_SKINS.length] || BOARD_SKINS[0];
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++){
     const g = cx.createLinearGradient(x*CELL, y*CELL, x*CELL, y*CELL+CELL);
-    if ((x+y) % 2){ g.addColorStop(0,'#3a2a1a'); g.addColorStop(1,'#241a10'); }
-    else { g.addColorStop(0,'#463321'); g.addColorStop(1,'#2b2015'); }
+    const pair = (x+y) % 2 ? skin.b : skin.a;
+    g.addColorStop(0, pair[0]); g.addColorStop(1, pair[1]);
     cx.fillStyle = g;
     cx.fillRect(x*CELL+1, y*CELL+1, CELL-2, CELL-2);
     // dirt speckle (stable per cell)

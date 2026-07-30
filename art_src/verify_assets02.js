@@ -1,6 +1,6 @@
-/* Playwright verification for asset drop 02. Evidence -> F:\OneDrive\Desktop\Tests\BoneCrush_assets02 */
+/* Playwright verification for asset drop 02. Evidence -> C:\Users\MiSTRFiNGA\Desktop\Tests\BoneCrush_assets02 */
 const { chromium } = require('playwright');
-const EVID = 'F:/OneDrive/Desktop/Tests/BoneCrush_assets02/';
+const EVID = 'C:/Users/MiSTRFiNGA/Desktop/Tests/BoneCrush_assets02/';
 (async () => {
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 900, height: 900 } });
