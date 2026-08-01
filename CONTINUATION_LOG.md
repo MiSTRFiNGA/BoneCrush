@@ -15,3 +15,35 @@ The pre-change rollback archives remain in `D:\Dev\GameBackups`.
 
 - Hand now clears only board rows 1, 3, 5, and 7 (the one-indexed visible rows); it no longer clears an extra cell outside those rows.
 - Its in-game power icon/label and the left legend now communicate that limit.
+
+## 2026-08-01 — Crypt Forge: full piece roster, sound editing, music
+
+Owner request: *"allow edit of all pieces, add pieces, edit select sound, move sound and match
+sounds, edit gameplay music, add mute music button."*
+
+**Forge (F2 on desktop · press-and-hold 🐞 for 700 ms on phone/APK)**
+
+- **PIECES tab** — every relic's art, name, score value, **burst colour** and match SFX. New
+  **＋ ADD RELIC** appends a brand-new piece type (`TYPES` is now a live value, not a constant);
+  added relics can be deleted again, shipped ones cannot, and the roster floors at 4 types.
+  Added relics spawn as soon as the board refills, drawing the vector fallback in their colour
+  until art is dropped on them.
+- **AUDIO tab (new)** — **SELECT**, **MOVE** and **DENIED** voices (empty = the shipped synth
+  beep), the **gameplay music** controls, and an **imported sound bank**: drop in an mp3/ogg/wav
+  and its name becomes usable in *every* SFX field, including as the music track.
+- Forge export/import now carries imported audio as well as replaced art.
+
+**Music**
+
+- Gameplay music plays while a board is live and stops on the menus. Default is a built-in
+  WebAudio "crypt dirge" (drone + sparse pentatonic plucks + heartbeat) with editable tempo, key
+  and volume — no asset, so it costs the APK nothing. Any imported track can replace it.
+- New **🎵 button** in the right-hand HUD column, with its own `bc_mute_music` setting — the
+  existing 🔊 still controls sound effects only.
+
+**Notes**
+
+- The gem's layered glass-shatter is now conditional: it stays layered while its clip list is
+  untouched, and behaves like any other relic once the Forge edits it.
+- Regression coverage: `qa/test_forge.py` (headless Playwright — 6 tests, run with the packaging
+  suite via `python -m pytest qa/ -q`). It caught a real load-order crash during this pass.

@@ -50,7 +50,10 @@
   #infoPanel ul li::before { content:'☠'; position:absolute; left:0; top:2px; color:#a5763a; font-size:10px; }
   #mute { top:8px; right:12px; font-size:clamp(18px,2.6vw,24px); cursor:pointer; opacity:.85; padding:4px 8px;
           background:rgba(20,16,14,.5); border:1px solid rgba(230,200,140,.3); border-radius:10px; }
-  #bug { top:52px; right:12px; font-size:clamp(18px,2.6vw,24px); cursor:pointer; opacity:.6; padding:4px 8px;
+  /* right-hand button column, top→bottom: 🔊 sfx · 🎵 music · 🐞 bug · 🏠 menu (#menuBtn, below) */
+  #musicBtn { top:52px; right:12px; font-size:clamp(18px,2.6vw,24px); cursor:pointer; opacity:.85; padding:4px 8px;
+         background:rgba(20,16,14,.5); border:1px solid rgba(230,200,140,.3); border-radius:10px; }
+  #bug { top:96px; right:12px; font-size:clamp(18px,2.6vw,24px); cursor:pointer; opacity:.6; padding:4px 8px;
          background:rgba(20,16,14,.5); border:1px solid rgba(230,200,140,.3); border-radius:10px; }
   #overlay { inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
              background:radial-gradient(ellipse at center, rgba(18,12,16,.6) 0%, rgba(6,4,7,.92) 100%);
@@ -88,7 +91,7 @@
   .hidden { display:none !important; }
   /* mode select / level select / endless menu / run-end — share the ossuary parchment look */
   #objHud { top:16px; right:64px; margin-top:28px; font-size:clamp(12px,2.1vw,16px); font-weight:700; color:#d9a75f; }
-  #menuBtn { top:96px; right:12px; font-size:clamp(18px,2.6vw,24px); cursor:pointer; opacity:.75; padding:4px 8px;
+  #menuBtn { top:140px; right:12px; font-size:clamp(18px,2.6vw,24px); cursor:pointer; opacity:.75; padding:4px 8px;
              background:rgba(20,16,14,.5); border:1px solid rgba(230,200,140,.3); border-radius:10px; }
   #modeSelect, #levelSelect, #runEnd { inset:0; display:flex; flex-direction:column; align-items:center;
              justify-content:center; background:radial-gradient(ellipse at center, rgba(18,12,16,.6) 0%, rgba(6,4,7,.92) 100%);
@@ -117,6 +120,15 @@
   .back { margin-top:18px; font-size:clamp(12px,2vw,15px); padding:8px 22px; border-radius:26px;
           background:rgba(34,26,22,.65); color:#eed9a8; border:1px solid rgba(230,190,120,.4); cursor:pointer; }
   .reStars { font-size:clamp(24px,4.5vw,36px); color:#ffd24a; letter-spacing:6px; margin:8px 0; text-shadow:0 0 16px rgba(255,180,60,.5); }
+  /* Run-end stats: the .stat rules above are scoped to #overlay, so these rendered unstyled.
+     Owner request 2026-07-30 — match the in-game skull HUD's size/glow so the level-complete
+     score reads as the same number the player was just watching climb. */
+  #runEnd .stats { display:flex; gap:22px; margin:10px 0 4px; flex-wrap:wrap; justify-content:center; }
+  #runEnd .stat { background:rgba(30,24,20,.6); border:1px solid rgba(220,190,130,.25);
+                  border-radius:14px; padding:10px 20px; min-width:118px; }
+  #runEnd .stat .v { font-size:clamp(26px,5.4vw,54px); font-weight:900; color:#f6ecd7; line-height:1;
+                     text-shadow:0 0 12px #ff8a00, 0 0 26px #c93400; }
+  #runEnd .stat .l { font-size:clamp(9px,1.6vw,12px); color:#c9a86a; letter-spacing:2px; text-transform:uppercase; margin-top:4px; }
   .reBtns { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-top:10px; }
 </style>
 </head>
@@ -125,8 +137,9 @@
 <div class="ui" id="hud"></div>
 <div class="ui" id="moves"></div>
 <div class="ui hidden" id="objHud"></div>
-<div class="ui" id="mute">🔊</div>
-<div class="ui" id="bug" title="Download bug report (F8)">🐞</div>
+<div class="ui" id="mute" title="Sound effects">🔊</div>
+<div class="ui" id="musicBtn" title="Music">🎵</div>
+<div class="ui" id="bug" title="Download bug report (F8) · hold to open the Crypt Forge">🐞</div>
 <div class="ui" id="menuBtn" title="Back to mode select">🏠</div>
 <div class="ui" id="infoToggle" title="Ossuary legend — pieces, powers & rules">📖</div>
 <div class="ui hidden" id="infoPanel"></div>
@@ -140,10 +153,9 @@ window.PSDK = window.PSDK || { ready: Promise.resolve(), loaded(){}, start(){}, 
                                midgame(){ return Promise.resolve(); } };
 </script>
 
-<!-- Daily-mode start/result screen. Cold-open (B1 correction) means this is NEVER shown before the
-     first swap anymore — it only appears (a) when the player explicitly taps the DAILY tab, in which
-     case beginGame() fires immediately without waiting for a click here, or (b) after a daily run ends,
-     showing the score/streak/share result exactly as before. -->
+<!-- Title screen + daily result screen (same panel, two states). Shown on load as the TITLE screen
+     (owner request 2026-07-30, reversing the earlier B1 cold-open); also appears after a daily run
+     ends, where refreshMenu(true) swaps in the score/streak/share result block. -->
 <div class="ui hidden" id="overlay">
   <h1 class="logo"><img src="assets/title_logo.jpg" alt="CRYPT MATCH — a grim match-3 adventure"></h1>
   <div class="tag">Match the remains. Everyone on Earth digs the <b>same catacomb board</b> today.</div>
@@ -192,7 +204,12 @@ window.PSDK = window.PSDK || { ready: Promise.resolve(), loaded(){}, start(){}, 
 <script>
 "use strict";
 /* CRYPT MATCH (formerly Bone Crush) — daily-seeded match-3. No backend; same board worldwide per UTC day. */
-const N = 8, TYPES = 8, MOVES0 = 30;   // 8 normal types (asset drop 02 added cat/cauldron/heart)
+const N = 8, MOVES0 = 30;
+/* TYPES = how many normal piece types are in play. Shipped default 8 (asset drop 02 added
+   cat/cauldron/heart); the Crypt Forge PIECES tab can add/remove types live, so this is a `let`
+   and every spawn site reads it fresh. Floor of 4 is enforced in cmApply — below that the board
+   deadlocks into constant cascades. */
+let TYPES = 8;
 const cv = document.getElementById('game'), cx = cv.getContext('2d');
 let CELL = 64, PAD = 0, TOPPAD = 56, DPR = 1;
 /* PERF: the stone-floor board background (per-cell linear gradient + dirt speckle + highlight line)
@@ -312,6 +329,17 @@ const LEVELS = [
   { objective:'clearType', type:0, count:28, moves:20, stars:[28,42,58] },
   { objective:'score',     target:11000, moves:22, stars:[11000,15500,21000] },
 ];
+// Owner feedback 2026-07-30: "the amount needed to pass each level are too low at current."
+// Applied as a scaling pass rather than rewriting the table above, because that table is a
+// generated curve meant to be swapped wholesale — this keeps the swap clean and the tune revertible.
+// SCORE objectives only: collect/drop/tiles targets are counts, not points, and weren't flagged.
+// Ramp is +40% at L1 growing to +100% by L40, so early levels stay easy (they're the conversion
+// metric) while later ones tighten. Rounded to 50s so the HUD keeps showing readable numbers.
+LEVELS.forEach((L, i) => {
+  if (L.objective !== 'score') return;
+  const m = 1.4 + 0.6 * (i / (LEVELS.length - 1)), r = v => Math.round(v * m / 50) * 50;
+  L.target = r(L.target); L.stars = L.stars.map(r);   // stars[0] must stay == target; same rounding keeps them equal
+});
 
 /* ── PROGRESSION SAVE ── one versioned localStorage object. loadSave() always
    merges forward: any field missing from a stored save (new field added in a
@@ -385,14 +413,25 @@ function noise(d,type,f0,f1,v,q){ if (muted) return; try{ const a=ac();
   if(f1)f.frequency.exponentialRampToValueAtTime(f1,a.currentTime+d);
   const g=a.createGain(); g.gain.value=v; g.gain.exponentialRampToValueAtTime(.0001,a.currentTime+d);
   s.connect(f); f.connect(g); g.connect(a.destination); s.start(); s.stop(a.currentTime+d);}catch(e){} }
+/* UI_SFX — select ("pick"), move ("swap") and denied ("bad") voices. Empty array = the synth
+   beep below, which is the shipped default. The Crypt Forge AUDIO tab writes real clip names in
+   here (including clips the owner drops in himself), and playRand() falls back to the synth
+   whenever a clip is missing or still loading, so a bad entry can never silence the game. */
+const UI_SFX = { pick: [], swap: [], bad: [] };
 const sfx = {
-  swap(){ beep(300,.06,'triangle',.05,380); },
-  bad(){ beep(140,.15,'sawtooth',.06,90); },
+  // short dry tick on first tap — deliberately quieter/higher than swap() so picking a piece reads
+  // as "selected", not as a move you already committed to (owner request 2026-07-30).
+  pick(){ if (playRand(UI_SFX.pick)) return; beep(660,.035,'square',.03,760); },
+  swap(){ if (playRand(UI_SFX.swap)) return; beep(300,.06,'triangle',.05,380); },
+  bad(){ if (playRand(UI_SFX.bad)) return; beep(140,.15,'sawtooth',.06,90); },
   crush(n, type){ const t=Math.min(n||3,7);
     // per-piece-type clip. Gem (4) = glass shatter with BOTH clips mixed; all others random-pick.
-    const real = (type === 4)
-      ? playLayer(['bottle','glass'])                                          // gem → mixed glass shatter (Eric reversal)
-      : playRand((type !== undefined && PIECE_SFX[type]) || ['bonecrack','bonesnap']);
+    // The gem's shipped pair is LAYERED (both clips at once) rather than random-picked. That stays
+    // true only while its clip list is untouched — once the Forge edits piece 4's sounds, the edit
+    // wins and it behaves like every other piece.
+    const list = (type !== undefined && PIECE_SFX[type]) || ['bonecrack','bonesnap'];
+    const gemDefault = type === 4 && list.length === 2 && list[0] === 'bottle' && list[1] === 'glass';
+    const real = gemDefault ? playLayer(list) : playRand(list);
     noise(.05,'bandpass',2500+Math.random()*400,900,real?.14:.36,7); // dry snap (quieter if layered on real clip)
     noise(.13,'bandpass',680,170,real?.10:.26,3);              // splintering crunch
     noise(.20,'lowpass',250,55,(real?.06:.15)+t*.02);          // low structural thud (scales w/ match size)
@@ -402,7 +441,10 @@ const sfx = {
 };
 // Drop-in audio bank (sounds/, all loudnorm-normalized mp3). If a file is absent (onerror flag),
 // we silently fall back to the synth SFX above — no 404 spam, guarded exactly like the SPRITES loader.
-function loadClip(file, vol){ const a = new Audio('sounds/' + file); a.preload = 'auto'; a.volume = vol;
+function loadClip(file, vol){ return loadClipSrc('sounds/' + file, vol); }
+/* Same guard, arbitrary source — used for Forge-imported clips, whose src is a data: URL held in
+   localStorage rather than a file in sounds/. */
+function loadClipSrc(src, vol){ const a = new Audio(src); a.preload = 'auto'; a.volume = vol;
   a.onerror = () => { a._failed = true; }; return a; }
 const CLIPS = {
   laugh:       loadClip('evil_laugh.mp3', .6),
@@ -465,8 +507,93 @@ function playSmallExplosion(){ if (muted) return false;
   const c = CLIPS[name]; if (!c || c._failed || !c.readyState) return false;   // not loaded → skip
   try { const p = c.cloneNode(); p.volume = SMALL_EXPLO_VOL; p.play().catch(()=>{});
     if (SFX_LOG) console.log('[sfx]', name, '(small)'); return true; } catch(e){ return false; } }
+/* ══ GAMEPLAY MUSIC ════════════════════════════════════════════════════════
+   Two sources, one switch (Crypt Forge → AUDIO tab):
+     • SYNTH (shipped default) — a slow WebAudio crypt dirge: sustained minor drone, sparse
+       pentatonic plucks and a heartbeat thud. No asset, so it costs the APK nothing and works
+       offline. Tempo/key/volume are editable.
+     • TRACK — any audio file the owner drops in, looped. Stored as a data: URL in localStorage
+       alongside the imported SFX bank, so it survives reloads and travels in the Forge export.
+   Music is deliberately GAMEPLAY-only: it starts when a board starts and stops on the menu /
+   game-over screens. Browsers (and the Android WebView) refuse audio before a user gesture, so
+   nothing is created until the first pointer/key event. Its mute is SEPARATE from the SFX mute —
+   🔇 kills sound effects, 🎵 kills music, and each remembers its own setting. */
+let musicMuted = localStorage.bc_mute_music === '1';
+const MUSIC_CFG = { src: '', volume: .45, bpm: 76, root: 110 };   // src '' → synth
+const music = (function(){
+  let el = null, elSrc = null, timer = null, gate = null, gestured = false, on = false;
+  const SCALE = [0, 3, 5, 7, 10, 12];   // minor pentatonic + octave — reads as dread, not melody
+  function gain(){ if (!gate){ gate = ac().createGain(); gate.connect(ac().destination); }
+    gate.gain.value = MUSIC_CFG.volume; return gate; }
+  function voice(freq, t, dur, type, vol, filt){ const a = ac();
+    const o = a.createOscillator(), g = a.createGain(), f = a.createBiquadFilter();
+    o.type = type; o.frequency.value = freq; f.type = 'lowpass'; f.frequency.value = filt;
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + .04);
+    g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    o.connect(f); f.connect(g); g.connect(gain()); o.start(t); o.stop(t + dur + .02); }
+  let nextBar = 0, barIdx = 0;
+  function schedule(){ const a = ac(), spb = 60 / Math.max(30, MUSIC_CFG.bpm), bar = spb * 4;
+    if (nextBar < a.currentTime) nextBar = a.currentTime + .06;
+    while (nextBar < a.currentTime + 1.2){          // keep ~1 bar of lookahead queued
+      const t = nextBar, r = MUSIC_CFG.root;
+      voice(r / 2, t, bar * .95, 'sawtooth', .10, 320);              // sub drone, whole bar
+      voice(r, t, bar * .95, 'triangle', .06, 700);                  // body
+      for (let i = 0; i < 8; i++){                                   // sparse eighth-note plucks
+        if (((barIdx * 7 + i * 5) % 8) > 4) continue;                // fixed sparse pattern, not random
+        const n = SCALE[(barIdx * 3 + i) % SCALE.length];
+        voice(r * 2 * Math.pow(2, n / 12), t + i * spb / 2, .34, 'sine', .05, 2600);
+      }
+      voice(r * .75, t, .16, 'sine', .12, 200);                      // heartbeat thud, beat 1
+      voice(r * .75, t + spb * 2, .13, 'sine', .09, 200);            // and beat 3
+      nextBar += bar; barIdx++;
+    }
+  }
+  function stopAll(){ if (el){ try { el.pause(); } catch(e){} }
+    if (timer){ clearInterval(timer); timer = null; } on = false; }
+  function startAll(){
+    if (MUSIC_CFG.src){                                              // imported track
+      if (!el || elSrc !== MUSIC_CFG.src){ if (el) try { el.pause(); } catch(e){}
+        el = new Audio(MUSIC_CFG.src); el.loop = true; elSrc = MUSIC_CFG.src; }
+      el.volume = MUSIC_CFG.volume; el.play().catch(()=>{});
+    } else {                                                          // synth dirge
+      if (el) try { el.pause(); } catch(e){}
+      try { ac(); } catch(e){ return; }
+      nextBar = 0; if (!timer) timer = setInterval(schedule, 250); schedule();
+    }
+    on = true;
+  }
+  function want(){ return gestured && !musicMuted && typeof playing !== 'undefined' && playing; }
+  function sync(){ const w = want();
+    if (w && !on) startAll();
+    else if (!w && on) stopAll();
+    else if (on){ if (el && MUSIC_CFG.src) el.volume = MUSIC_CFG.volume; if (gate) gate.gain.value = MUSIC_CFG.volume; }
+  }
+  return {
+    sync,
+    // Re-evaluate the source after a Forge edit: hard-stop so the next sync() rebuilds cleanly.
+    reload(){ stopAll(); if (el){ el = null; elSrc = null; } sync(); },
+    begin(){ const kick = () => { gestured = true; sync(); };
+      addEventListener('pointerdown', kick, { once:false });
+      addEventListener('keydown', kick, { once:false });
+      document.addEventListener('visibilitychange', () => { if (document.hidden) stopAll(); else sync(); });
+      setInterval(sync, 500); }   // one cheap poller instead of hooking every start/end path
+  };
+})();
+const musicBtn = document.getElementById('musicBtn');
+musicBtn.onclick = (e)=>{ e.stopPropagation(); musicMuted = !musicMuted;
+  localStorage.bc_mute_music = musicMuted ? '1' : '0'; drawMusicBtn(); music.sync(); };
+/* Emoji "muted note" glyphs render inconsistently across Android WebView / desktop, so the OFF
+   state is styled (dimmed + struck through) rather than swapped for a different character. */
+function drawMusicBtn(){ musicBtn.textContent = '🎵';
+  musicBtn.style.opacity = musicMuted ? .3 : .85;
+  musicBtn.style.textDecoration = musicMuted ? 'line-through' : 'none';
+  musicBtn.title = musicMuted ? 'Music off — tap for music' : 'Music on — tap to mute music'; }
+drawMusicBtn();
 const bugBtn = document.getElementById('bug');
-bugBtn.onclick = (e)=>{ e.stopPropagation(); bugReport(); };
+// __cfHeld is set by the Crypt Forge's press-and-hold gesture on this same icon (see CRYPTFORGE
+// at the bottom): a long press opens the Forge and must NOT also file a bug report.
+window.__cfHeld = false;
+bugBtn.onclick = (e)=>{ e.stopPropagation(); if (window.__cfHeld){ window.__cfHeld = false; return; } bugReport(); };
 const muteBtn = document.getElementById('mute');
 muteBtn.onclick = (e)=>{ e.stopPropagation(); muted=!muted; localStorage.bc_mute=muted?'1':'0'; drawMute(); };
 function drawMute(){ muteBtn.textContent = muted ? '🔇':'🔊'; } drawMute();
@@ -502,6 +629,19 @@ const SPECIAL_DEFS = [
 ];
 const SP_SPRITES = SPECIAL_DEFS.map(d => { const im = new Image(); im.onerror = () => { im._failed = true; };
   im.src = 'assets/' + d.file; return im; });
+/* ── CRYPT FORGE STORAGE ── declared up here, next to the arrays they override, because the info
+   panel and the sprite loaders read them long before the Forge UI itself is defined further down. */
+const CM_KEY = 'cryptmatch_forge_v1', CM_ART_KEY = 'cryptmatch_forge_art_v1',
+      CM_AUD_KEY = 'cryptmatch_forge_audio_v1';
+let CM_ART = {}; try { CM_ART = JSON.parse(localStorage.getItem(CM_ART_KEY) || '{}'); } catch(e){}
+/* Imported audio: { clipName: {src:'data:audio/…', vol:0.5} }. Registered into CLIPS by cmApply,
+   which makes every imported sound usable anywhere a clip name is accepted — piece match SFX,
+   relic detonations, the select/move/deny voices and the music track. */
+let CM_AUD = {}; try { CM_AUD = JSON.parse(localStorage.getItem(CM_AUD_KEY) || '{}'); } catch(e){}
+const CM_BASE_TYPES = SPRITE_FILES.length;   // how many piece types SHIPPED — above this = Forge-added
+/* Where a piece's art comes from: a Forge-replaced/added image (data URL) or the shipped PNG.
+   Added pieces with no art yet fall back to the vector relic drawn in their colour. */
+function pieceArtSrc(i){ return CM_ART['p'+i] || (SPRITE_FILES[i] ? 'assets/' + SPRITE_FILES[i] : ''); }
 function isSpecial(t){ return t >= SP_BASE; }
 function specialIdx(t){ return t - SP_BASE; }
 /* ── SPECIAL PROGRESSION GATING ── in CAMPAIGN, these four specials unlock as
@@ -1253,7 +1393,7 @@ let dragStart = null;
 cv.addEventListener('pointerdown', e => { if (!playing || busy) return;
   const c = cellAt(e); if (!c) return;
   if (sel && (Math.abs(sel.x-c.x)+Math.abs(sel.y-c.y) === 1)){ trySwap(sel, c); }
-  else { sel = c; dragStart = c; }
+  else { sel = c; dragStart = c; sfx.pick(); }
 });
 cv.addEventListener('pointermove', e => { if (!playing || busy || !dragStart) return;
   const c = cellAt(e); if (!c || (c.x === dragStart.x && c.y === dragStart.y)) return;
@@ -1273,14 +1413,15 @@ function hudDraw(){
   movesEl.textContent = '⛏ ' + moves;   // score readout is animated in render() via tickScore()
   if (MODE === 'campaign' && campaignState){
     const lvl = LEVELS[campaignLevelIdx];
-    const txt = lvl.objective === 'score' ? `${score}/${lvl.target}`
-      : lvl.objective === 'clearType' ? `${PIECE_NAMES[lvl.type]} ${campaignState.progress}/${lvl.count}`
-      : lvl.objective === 'drop' ? `Drop ${campaignState.progress}/${lvl.count}`
-      : `Tiles ${campaignState.progress}/${lvl.count}`;
+    // Counts moved to the big skull HUD (see goalNums) — this now only NAMES the objective, so the
+    // player still knows what they're collecting without the same fraction appearing twice.
+    const txt = lvl.objective === 'score' ? 'Score'
+      : lvl.objective === 'clearType' ? PIECE_NAMES[lvl.type]
+      : lvl.objective === 'drop' ? 'Drop' : 'Tiles';
     objHud.textContent = `🎯 Lv.${campaignLevelIdx+1} · ${txt}`;
     objHud.classList.remove('hidden');
   } else if (MODE === 'endless'){
-    objHud.textContent = `♾️ Tier ${endlessTier+1} · next ${endlessTarget}`;
+    objHud.textContent = `♾️ Tier ${endlessTier+1}`;
     objHud.classList.remove('hidden');
   } else {
     objHud.classList.add('hidden');
@@ -1442,23 +1583,41 @@ function showRunEnd(o){
     bindTap(document.getElementById('reMenu'), ()=>{ runEnd.classList.add('hidden'); showLevelSelect(); });
   }
 }
-/* Cold-open: called once at load (see the bottom of this script). Always campaign, at the
-   frontier level, and calls start() directly (never beginGame()) so the very first paint is a
-   live, playable board with zero clicks and no ad gate. */
+/* Called once at load (see the bottom of this script). Always campaign, at the frontier level.
+   Owner request 2026-07-30: the game now opens on the TITLE screen rather than cold-opening
+   straight into a live board — this deliberately reverses the earlier "B1 cold-open" decision,
+   which existed to minimise clicks-to-play for ad-portal grading. If a portal ever penalises the
+   extra tap, this function is the one place to flip it back. */
 function resumeMode(){
   MODE = 'campaign'; campaignAttempt = 0; campaignLevelIdx = campaignFrontierLevel();
   ensureDailyQuests(); checkDailyLogin();   // B2: non-blocking toast only — never delays the first paint
-  start();
+  refreshMenu(false);                        // stats only; leaves the result/share block hidden
+  resultBlock.classList.add('hidden'); btnShare.classList.add('hidden');
+  btnGo.textContent = 'PLAY';
+  overlay.classList.remove('hidden');        // btnGo → beginGame() → start()
 }
 
 /* Animated score counter: roll `scoreShown` up toward `scoreTarget`, with a scale-pop + colour flash.
    Driven every frame so the number visibly climbs as flyers land. */
+/* Big HUD now reads "have / need" for whatever this level actually asks for (owner request
+   2026-07-30) — on a collect/drop/tiles level the raw score isn't the number you're chasing, so
+   showing it there was useless. Daily has no target by design, so it stays a bare score. */
+function goalNums(){
+  if (MODE === 'campaign' && campaignState){
+    const L = LEVELS[campaignLevelIdx];
+    return L.objective === 'score' ? [Math.round(scoreShown), L.target]
+                                   : [campaignState.progress, L.count];
+  }
+  if (MODE === 'endless') return [Math.round(scoreShown), endlessTarget];
+  return [Math.round(scoreShown), null];
+}
 function tickScore(dt){
   scoreShown += (scoreTarget - scoreShown) * Math.min(1, dt*9);
   if (Math.abs(scoreTarget - scoreShown) < 0.6) scoreShown = scoreTarget;
   hudPulse = Math.max(0, hudPulse - dt*3.0);
   hudFlash = Math.max(0, hudFlash - dt*2.4);
-  hud.textContent = '💀 ' + Math.round(scoreShown);
+  const [cur, need] = goalNums();
+  hud.textContent = '💀 ' + cur + (need ? '/' + need : '');
   hud.style.transform = 'scale(' + (1 + hudPulse*0.30).toFixed(3) + ')';
   if (hudFlash > 0){ const f = hudFlash;
     hud.style.color = '#fff';
@@ -1711,7 +1870,6 @@ window.__forceSpecial = (id, x, y) => {
 
 /* ── LEFT-SIDE INFO PANEL (ossuary legend) ── pieces + point values, powers, and the rules ── */
 const infoToggle = document.getElementById('infoToggle'), infoPanel = document.getElementById('infoPanel');
-const PIECE_ICONS = ['skull.png','crossbones.png','ribcage.png','femur.png','gem.png','blackcat.png','cauldron.png','heart.png'];
 const PIECE_NAMES = ['Skull','Crossbones','Ribcage','Femur','Emerald gem','Black cat','Cauldron','Heart'];
 const SPECIAL_INFO = {
   potion:'detonates a 3×3 square', key:'moves 6 relics, detonates 6, then moves 6 again', eyeball:'purges every relic of one random type',
@@ -1722,8 +1880,10 @@ const SPECIAL_INFO = {
 };
 function buildInfoPanel(){
   let h = '<h3>Relics · points each</h3>';
-  for (let i = 0; i < PIECE_ICONS.length; i++)
-    h += `<div class="row"><img src="assets/${PIECE_ICONS[i]}" alt=""><span class="nm">${PIECE_NAMES[i]}</span><span class="pts">${PIECE_VALUES[i]}</span></div>`;
+  // Driven off the LIVE piece arrays (not a frozen icon list) so relics added in the Crypt Forge —
+  // and Forge-replaced art, which lives as a data: URL — show up in the legend too.
+  for (let i = 0; i < TYPES; i++)
+    h += `<div class="row"><img src="${pieceArtSrc(i)}" alt=""><span class="nm">${PIECE_NAMES[i]||('Relic '+(i+1))}</span><span class="pts">${PIECE_VALUES[i]}</span></div>`;
   h += '<h3>Powers</h3>';
   for (const d of SPECIAL_DEFS)
     h += `<div class="row"><img src="assets/${d.file}" alt="${d.name}"><span class="ds"><b style="color:#f4e6c4">${d.name}</b> — ${SPECIAL_INFO[d.id] || d.label}</span></div>`;
@@ -1789,13 +1949,345 @@ if (location.search.includes('test')){
     })();
   }, 500);
 }
+/* ══ CRYPT FORGE — live content editor (F2) ═══════════════════════════════════
+   Mirrors HiVE WAR's FORGE: every editable value lives in one CEDIT object persisted to
+   localStorage and applied back onto the live game arrays, so edits show up immediately with no
+   reload. SCOPE = DATA ONLY (names, art, sounds, piece values, level targets, unlock gates).
+   What a relic DOES is deliberately not editable: fireSpecial()/detonateSpecial() are hardcoded
+   per-id branches, and making them data-driven needs a real effect-composition format — that's a
+   separate project, not something to fake here with a half-working knob. */
+function cmDefaults(){ return {
+  pieces:   SPRITE_FILES.map((f,i)=>({ name:(PIECE_NAMES&&PIECE_NAMES[i])||('piece '+i), value:PIECE_VALUES[i],
+                                       sfx:(PIECE_SFX[i]||[]).join(','), color:COLS[i] })),
+  specials: SPECIAL_DEFS.map(d=>({ name:d.name, glow:d.glow, label:d.label, sfx:(SPECIAL_SFX[d.id]||[]).join(',') })),
+  levels:   LEVELS.map(L=>({ target:L.target||0, moves:L.moves })),
+  unlocks:  Object.assign({}, GATED_SPECIAL_UNLOCK),
+  ui:       { pick:'', swap:'', bad:'' },                               // '' = the shipped synth beep
+  music:    { clip:'', volume:.45, bpm:76, root:110 },                  // clip '' = the synth dirge
+}; }
+// Snapshot the pristine values BEFORE any saved overrides land, so RESET has something true to go
+// back to (cmDefaults() reads the live arrays, which are mutated by cmApply).
+const CM_BASE = JSON.parse(JSON.stringify(cmDefaults()));
+let CEDIT = JSON.parse(JSON.stringify(CM_BASE));
+cmMerge(function(){ try { return JSON.parse(localStorage.getItem(CM_KEY) || 'null'); } catch(e){ return null; } }());
+/* Fold a saved/imported blob into CEDIT. `pieces` is the one array that can GROW (Forge-added
+   relic types), so entries past the current length are appended rather than dropped. */
+function cmMerge(saved){ if (!saved) return;
+  if (Array.isArray(saved.pieces)) saved.pieces.forEach((v,i)=>{
+    if (CEDIT.pieces[i]) Object.assign(CEDIT.pieces[i], v);
+    else CEDIT.pieces[i] = Object.assign({ name:'Relic '+(i+1), value:10, sfx:'', color:'#c9a86a' }, v); });
+  ['specials','levels'].forEach(k => { if (Array.isArray(saved[k]))
+      saved[k].forEach((v,i)=>{ if (CEDIT[k][i]) Object.assign(CEDIT[k][i], v); }); });
+  if (saved.unlocks) Object.assign(CEDIT.unlocks, saved.unlocks);
+  if (saved.ui) Object.assign(CEDIT.ui, saved.ui);
+  if (saved.music) Object.assign(CEDIT.music, saved.music);
+}
+function cmSave(){ try { localStorage.setItem(CM_KEY, JSON.stringify(CEDIT)); } catch(e){} }
+function cmSaveArt(){ try { localStorage.setItem(CM_ART_KEY, JSON.stringify(CM_ART)); }
+  catch(e){ alert('Storage full — clear some replaced art first.'); } }
+function cmSaveAud(){ try { localStorage.setItem(CM_AUD_KEY, JSON.stringify(CM_AUD)); return true; }
+  catch(e){ alert('Storage full — remove an imported sound (or a shorter music track) first.'); return false; } }
+const cmList = s => String(s||'').split(',').map(x=>x.trim()).filter(x=>CLIPS[x]);   // drop unknown clip names
+function cmApply(){
+  // 1. imported audio → CLIPS, so the name resolves everywhere before any sfx list is validated
+  for (const name in CM_AUD){ const e = CM_AUD[name];
+    if (!CLIPS[name] || CLIPS[name]._cmSrc !== e.src){
+      CLIPS[name] = loadClipSrc(e.src, e.vol == null ? .55 : e.vol); CLIPS[name]._cmSrc = e.src; }
+    else CLIPS[name].volume = e.vol == null ? .55 : e.vol; }
+  for (const name in CLIPS) if (CLIPS[name]._cmSrc && !CM_AUD[name]) delete CLIPS[name];   // removed in the Forge
+  // 2. piece roster — this array can grow/shrink, so every parallel array is resized with it
+  const want = Math.max(4, CEDIT.pieces.length);
+  CEDIT.pieces.length = want;
+  for (let i = 0; i < want; i++){ const p = CEDIT.pieces[i] || (CEDIT.pieces[i] = {});
+    if (p.name == null) p.name = 'Relic ' + (i+1);
+    if (p.value == null) p.value = 10;
+    if (p.color == null) p.color = COLS[i] || '#c9a86a';
+    PIECE_VALUES[i] = +p.value || 0; PIECE_NAMES[i] = p.name; COLS[i] = p.color;
+    const l = cmList(p.sfx); PIECE_SFX[i] = l.length ? l : (PIECE_SFX[i] || ['bonecrack','bonesnap']);
+    if (!SPRITE_FILES[i]) SPRITE_FILES[i] = '';                    // added type: no shipped PNG
+    if (!SPRITES[i]) { const im = new Image(); im.onerror = () => { im._failed = true; };
+      im._failed = true; SPRITES[i] = im; }                        // vector fallback until art is dropped in
+    // Added slot whose art was cleared (or was vacated by a delete-and-shift): drop back to the
+    // vector relic rather than keep showing the previous occupant's image.
+    if (i >= CM_BASE_TYPES && !CM_ART['p'+i]) { SPRITES[i]._failed = true; SPRITES[i].removeAttribute('src'); }
+  }
+  [PIECE_VALUES, PIECE_NAMES, PIECE_SFX, COLS, SPRITE_FILES, SPRITES].forEach(a => { a.length = want; });
+  TYPES = want;
+  // A shrunk roster can leave orphaned type ids on a live board — remap them instead of crashing
+  // drawPiece/COLS lookups. Specials (>= SP_BASE) are untouched.
+  for (let y = 0; y < grid.length; y++) for (let x = 0; x < (grid[y]||[]).length; x++){
+    const t = grid[y][x]; if (!isSpecial(t) && t >= TYPES) grid[y][x] = t % TYPES; }
+  // 3. UI voices + music
+  UI_SFX.pick = cmList(CEDIT.ui.pick); UI_SFX.swap = cmList(CEDIT.ui.swap); UI_SFX.bad = cmList(CEDIT.ui.bad);
+  const mc = CEDIT.music, track = mc.clip && CM_AUD[mc.clip] ? CM_AUD[mc.clip].src : '';
+  const changed = track !== MUSIC_CFG.src;
+  MUSIC_CFG.src = track; MUSIC_CFG.volume = Math.min(1, Math.max(0, +mc.volume || 0));
+  MUSIC_CFG.bpm = Math.min(200, Math.max(30, +mc.bpm || 76));
+  MUSIC_CFG.root = Math.min(400, Math.max(40, +mc.root || 110));
+  if (changed) music.reload(); else music.sync();
+  CEDIT.specials.forEach((s,i)=>{ const d = SPECIAL_DEFS[i]; if (!d) return;
+    d.name = s.name; d.glow = s.glow; d.label = s.label;
+    const l = cmList(s.sfx); if (l.length) SPECIAL_SFX[d.id] = l; });
+  CEDIT.levels.forEach((L,i)=>{ const T = LEVELS[i]; if (!T) return;
+    T.moves = Math.max(1, +L.moves || 1);
+    if (T.objective === 'score') { T.target = +L.target || 0; T.stars[0] = T.target; } });  // stars[0] must track target
+  for (const k in CEDIT.unlocks) GATED_SPECIAL_UNLOCK[k] = +CEDIT.unlocks[k];
+  for (const k in CM_ART) { const p = k.match(/^p(\d+)$/), s = k.match(/^s(\d+)$/);
+    const im = p ? SPRITES[+p[1]] : s ? SP_SPRITES[+s[1]] : null;
+    if (im) { im._failed = false; im.src = CM_ART[k]; } }
+}
+cmApply();
+(function CRYPTFORGE(){
+  const st = document.createElement('style');
+  st.textContent = `#cf{position:fixed;inset:5% 3%;background:rgba(8,6,14,.97);border:1px solid #7fc76f;border-radius:8px;
+    z-index:9999;display:none;flex-direction:column;font:12px 'Segoe UI',sans-serif;color:#cfe;overflow:hidden}
+  #cf.on{display:flex} #cf h3{margin:0;padding:8px 12px;background:#12331a;color:#9fe86f;letter-spacing:2px;font-size:13px}
+  #cf .tabs{display:flex;gap:2px;padding:6px 8px;background:#0d1a10;flex-wrap:wrap}
+  #cf .tabs div{padding:5px 10px;background:#16241a;cursor:pointer;border-radius:3px;letter-spacing:1px}
+  #cf .tabs div.on{background:#7fc76f;color:#04140a;font-weight:700}
+  #cf .bd{flex:1;overflow:auto;padding:10px 12px}
+  #cf table{border-collapse:collapse;width:100%} #cf th,#cf td{border-bottom:1px solid #1d3322;padding:3px 5px;text-align:left}
+  #cf th{color:#9fe86f;font-size:10px;letter-spacing:1px}
+  #cf input,#cf select{background:#0c1710;border:1px solid #2c5c3a;color:#dfe;border-radius:3px;padding:2px 4px;font:12px inherit}
+  #cf button{background:#16241a;border:1px solid #2c5c3a;color:#9fe86f;border-radius:3px;padding:4px 9px;cursor:pointer;font:12px inherit}
+  #cf button.warn{border-color:#a33;color:#f88} #cf .hint{color:#7a9;font-size:11px;margin-bottom:8px;line-height:1.45}
+  #cf .row{display:flex;gap:8px;align-items:center;margin:6px 0;flex-wrap:wrap}
+  #cf .x{position:absolute;right:8px;top:6px;cursor:pointer;color:#9fe86f;font-size:16px}`;
+  document.head.appendChild(st);
+  const w = document.createElement('div'); w.id = 'cf';
+  w.innerHTML = `<h3>⚱ CRYPT FORGE — live content editor <span class="x" id="cfX">✕</span></h3>
+    <div class="tabs" id="cfT"></div><div class="bd" id="cfB"></div>`;
+  document.body.appendChild(w);
+  const bd = w.querySelector('#cfB'), tabsEl = w.querySelector('#cfT');
+  const TABS = ['PIECES','RELICS','LEVELS','AUDIO','DATA']; let tab = 0;
+  TABS.forEach((t,i)=>{ const d=document.createElement('div'); d.textContent=t;
+    d.onclick=()=>{ tab=i; draw(); }; tabsEl.appendChild(d); });
+  w.querySelector('#cfX').onclick = () => w.classList.remove('on');
+  // Recomputed per draw — the clip bank grows as sounds are imported on the AUDIO tab.
+  const clipNames = () => Object.keys(CLIPS);
+  const clipList = () => clipNames().join(', ');
+  // one delegated input handler: data-cp="pieces.2.value" writes straight into CEDIT
+  bd.addEventListener('input', e => { const p = e.target.dataset.cp; if (!p) return;
+    const ks = p.split('.'), last = ks.pop(), o = ks.reduce((a,k)=>a[k], CEDIT);
+    o[last] = (e.target.type === 'number' || e.target.type === 'range') ? parseFloat(e.target.value) : e.target.value;
+    cmSave(); cmApply();
+    if (p === 'music.volume') e.target.nextElementSibling.textContent = Math.round(o[last]*100) + '%'; });
+  const m0 = s => String(s == null ? '' : s).replace(/"/g, '&quot;');   // safe in a value="…" attribute
+  function art(kind, i, cur){   // thumbnail that opens a file picker to replace that sprite
+    const k = kind + i, src = CM_ART[k] || (cur ? 'assets/' + cur : '');
+    // Added relic with no art yet: an empty <img> renders as a broken-image icon, so show a
+    // "drop art here" placeholder instead. Same data-cfart hook, same click-to-replace behaviour.
+    if (!src) return `<span data-cfart="${k}" title="click to add art" style="display:inline-flex;height:30px;width:30px;
+      align-items:center;justify-content:center;border:1px dashed #2c5c3a;border-radius:3px;cursor:pointer;color:#5a8">＋</span>`;
+    return `<img data-cfart="${k}" src="${src}" title="click to replace" style="height:30px;width:30px;object-fit:contain;
+      border:1px solid #2c5c3a;border-radius:3px;cursor:pointer;background:#0c1710">` +
+      (CM_ART[k] ? `<span data-cfclr="${k}" style="color:#f66;cursor:pointer;font-weight:900;margin-left:4px">✕</span>` : '');
+  }
+  function draw(){
+    tabsEl.querySelectorAll('div').forEach((d,i)=>d.classList.toggle('on', i===tab));
+    let h = '';
+    if (tab===0){
+      h = `<div class="hint">Every relic on the board: art, name, score value, burst colour and match sound.
+        VALUE = base points for one piece (chain multipliers apply on top). SFX = comma-separated clip names, one picked
+        at random per match. COLOUR tints the shatter particles and is also the fallback shape drawn when a piece has no art.
+        <br>ADD RELIC appends a brand-new type — it starts spawning immediately as the board refills, so drop art on it first.
+        Only added relics can be deleted (the 8 shipped ones stay), and the board needs at least 4 types.
+        <br>Available clips: <b>${clipList()}</b></div>
+        <table><tr><th>ART</th><th>PIECE</th><th>VALUE</th><th>COLOUR</th><th>MATCH SFX</th><th></th></tr>`;
+      CEDIT.pieces.forEach((p,i)=>{ h += `<tr><td>${art('p',i,SPRITE_FILES[i])}</td>
+        <td><input data-cp="pieces.${i}.name" value="${p.name}" style="width:110px"></td>
+        <td><input type="number" data-cp="pieces.${i}.value" value="${p.value}" style="width:56px"></td>
+        <td><input type="color" data-cp="pieces.${i}.color" value="${p.color||'#c9a86a'}" style="width:34px;height:22px;padding:0;border:none"></td>
+        <td><input data-cp="pieces.${i}.sfx" value="${p.sfx}" style="width:190px"></td>
+        <td>${i >= CM_BASE_TYPES && CEDIT.pieces.length > 4
+              ? `<button class="warn" data-cfdel="${i}" title="delete this added relic">✕</button>`
+              : '<span style="color:#456">shipped</span>'}</td></tr>`; });
+      h += `</table><div class="row"><button id="cfAdd">＋ ADD RELIC</button>
+        <span style="color:#7a9">${CEDIT.pieces.length} types in play</span></div>`;
+    } else if (tab===1){
+      h = `<div class="hint">Relic art, name, glow colour, description and detonation sound.
+        <b>What each relic DOES is fixed in code</b> — this edits how it looks, reads and sounds, plus which campaign level unlocks it
+        (blank = always available). Available clips: <b>${clipList()}</b></div>
+        <table><tr><th>ART</th><th>RELIC</th><th>GLOW</th><th>DESCRIPTION</th><th>SFX</th><th>UNLOCK LVL</th></tr>`;
+      CEDIT.specials.forEach((s,i)=>{ const id = SPECIAL_DEFS[i].id;
+        h += `<tr><td>${art('s',i,SPECIAL_DEFS[i].file)}</td>
+        <td><input data-cp="specials.${i}.name" value="${s.name}" style="width:100px"></td>
+        <td><input type="color" data-cp="specials.${i}.glow" value="${s.glow}" style="width:34px;height:22px;padding:0;border:none"></td>
+        <td><input data-cp="specials.${i}.label" value="${s.label}" style="width:180px"></td>
+        <td><input data-cp="specials.${i}.sfx" value="${s.sfx}" style="width:150px"></td>
+        <td><input type="number" data-cfu="${id}" value="${CEDIT.unlocks[id]!==undefined?CEDIT.unlocks[id]:''}" placeholder="—" style="width:52px"></td></tr>`; });
+      h += '</table>';
+    } else if (tab===2){
+      h = `<div class="hint">Campaign curve. TARGET only applies to score levels (others are collect/drop/tile counts, shown greyed).
+        Changing TARGET also moves the 1-star gate, which is the pass mark. Edits are live — reopen a level to test it.</div>
+        <table><tr><th>LVL</th><th>OBJECTIVE</th><th>TARGET</th><th>MOVES</th></tr>`;
+      CEDIT.levels.forEach((L,i)=>{ const T = LEVELS[i], isScore = T.objective === 'score';
+        h += `<tr><td>${i+1}</td><td style="color:#7fc76f">${T.objective}${isScore?'':' ×'+(T.count||0)}</td>
+        <td>${isScore?`<input type="number" data-cp="levels.${i}.target" value="${L.target}" style="width:70px">`:'<span style="color:#567">n/a</span>'}</td>
+        <td><input type="number" data-cp="levels.${i}.moves" value="${L.moves}" style="width:52px"></td></tr>`; });
+      h += '</table>';
+    } else if (tab===3){
+      const m = CEDIT.music, opts = ['<option value="">— synth crypt dirge (built in) —</option>']
+        .concat(Object.keys(CM_AUD).map(n => `<option value="${n}"${m.clip===n?' selected':''}>${n}</option>`)).join('');
+      h = `<div class="hint">The three interaction voices. Leave a field EMPTY for the shipped synth beep, or put in
+        clip names (comma-separated → one picked at random). Per-relic <i>match</i> sounds live on the PIECES tab and
+        relic detonations on RELICS — everything here and there accepts any clip in the bank below.
+        <br>Available clips: <b>${clipList()}</b></div>
+        <table><tr><th>EVENT</th><th>CLIPS</th><th></th></tr>
+        <tr><td>SELECT <span style="color:#567">— tapping a relic</span></td>
+            <td><input data-cp="ui.pick" value="${m0(CEDIT.ui.pick)}" placeholder="(synth tick)" style="width:230px"></td>
+            <td><button data-cfplay="ui.pick">▶</button></td></tr>
+        <tr><td>MOVE <span style="color:#567">— committing a swap</span></td>
+            <td><input data-cp="ui.swap" value="${m0(CEDIT.ui.swap)}" placeholder="(synth swap)" style="width:230px"></td>
+            <td><button data-cfplay="ui.swap">▶</button></td></tr>
+        <tr><td>DENIED <span style="color:#567">— illegal swap</span></td>
+            <td><input data-cp="ui.bad" value="${m0(CEDIT.ui.bad)}" placeholder="(synth buzz)" style="width:230px"></td>
+            <td><button data-cfplay="ui.bad">▶</button></td></tr></table>
+
+        <div class="hint" style="margin-top:14px">GAMEPLAY MUSIC — plays while a board is live, stops on the menus, and has its
+        own 🎵 mute button in game (separate from 🔊). Pick an imported track, or leave it on the built-in synth dirge and
+        tune its tempo/key. TEMPO and KEY only affect the synth.</div>
+        <div class="row"><b style="color:#9fe86f">TRACK</b><select data-cp="music.clip">${opts}</select>
+          <button id="cfMusPrev">▶ TEST</button><span style="color:#7a9">(starts a board to hear it in play)</span></div>
+        <div class="row"><b style="color:#9fe86f">VOLUME</b><input type="range" min="0" max="1" step="0.05"
+            data-cp="music.volume" value="${m.volume}" style="width:160px"><span>${Math.round(m.volume*100)}%</span></div>
+        <div class="row"><b style="color:#9fe86f">TEMPO</b><input type="number" data-cp="music.bpm" value="${m.bpm}" style="width:60px"> BPM
+          <b style="color:#9fe86f;margin-left:12px">KEY</b><input type="number" data-cp="music.root" value="${m.root}" style="width:60px"> Hz root</div>
+
+        <div class="hint" style="margin-top:14px">IMPORTED SOUND BANK — drop in your own mp3/ogg/wav and the name becomes usable
+        in every SFX field above, and as a music track. Files are stored in this browser (and in the Forge export), so keep them
+        small: a few hundred KB for effects, and note that a long music track can fill the ~5 MB storage budget on its own.</div>
+        <div class="row"><button id="cfSndAdd">＋ IMPORT SOUND</button></div>
+        <table><tr><th>NAME</th><th>SIZE</th><th>VOLUME</th><th></th><th></th></tr>` +
+        (Object.keys(CM_AUD).length ? '' : '<tr><td colspan="5" style="color:#567">nothing imported yet</td></tr>') +
+        Object.keys(CM_AUD).map(n => `<tr><td style="color:#9fe86f">${n}</td>
+          <td>${Math.round((CM_AUD[n].src.length*.75)/1024)} KB</td>
+          <td><input type="range" min="0" max="1" step="0.05" data-cfvol="${n}" value="${CM_AUD[n].vol==null?.55:CM_AUD[n].vol}" style="width:110px"></td>
+          <td><button data-cfclip="${n}">▶</button></td>
+          <td><button class="warn" data-cfsnddel="${n}">✕</button></td></tr>`).join('') + '</table>';
+    } else {
+      h = `<div class="hint">Values live in this browser's localStorage. Export to keep a copy or move machines.
+        Replaced art AND imported sounds are exported too, so a backup is fully self-contained (and can get large).</div>
+        <div class="row"><button id="cfExp">⇩ EXPORT JSON</button>
+          <button id="cfImpB">⇧ IMPORT JSON</button><input type="file" id="cfImp" accept=".json" style="display:none">
+          <button id="cfRst" class="warn">RESET ALL TO DEFAULTS</button></div>`;
+    }
+    bd.innerHTML = h;
+    if (tab===3) wireAudio();
+    if (tab===4){
+      bd.querySelector('#cfExp').onclick = () => { const a = document.createElement('a');
+        a.href = 'data:application/json,' + encodeURIComponent(JSON.stringify({values:CEDIT, art:CM_ART, audio:CM_AUD}, null, 1));
+        a.download = 'cryptmatch_forge_backup.json'; a.click(); };
+      const imp = bd.querySelector('#cfImp');
+      bd.querySelector('#cfImpB').onclick = () => { imp.value = ''; imp.click(); };
+      imp.onchange = () => { const f = imp.files[0]; if (!f) return; const rd = new FileReader();
+        rd.onload = () => { try { const j = JSON.parse(rd.result);
+          if (j.audio) { CM_AUD = j.audio; cmSaveAud(); }      // before cmMerge: music.clip must resolve
+          if (j.values) cmMerge(j.values);
+          if (j.art) { CM_ART = j.art; cmSaveArt(); }
+          cmSave(); cmApply(); draw(); } catch(err){ alert('Bad JSON: ' + err.message); } };
+        rd.readAsText(f); };
+      bd.querySelector('#cfRst').onclick = () => {
+        if (!confirm('Reset every Crypt Forge value, added relic, replaced art and imported sound?')) return;
+        CEDIT = JSON.parse(JSON.stringify(CM_BASE)); CM_ART = {}; CM_AUD = {};
+        cmSave(); cmSaveArt(); cmSaveAud(); cmApply(); draw(); };
+    }
+    if (tab===0){
+      bd.querySelector('#cfAdd').onclick = () => {
+        CEDIT.pieces.push({ name:'Relic ' + (CEDIT.pieces.length+1), value:10, sfx:'bonecrack,bonesnap',
+                            color:'#'+((1<<24)+Math.floor(Math.random()*0xffffff)).toString(16).slice(1) });
+        cmSave(); cmApply(); draw(); };
+      bd.querySelectorAll('[data-cfdel]').forEach(b => b.onclick = () => {
+        const i = +b.dataset.cfdel;
+        if (!confirm('Delete "' + CEDIT.pieces[i].name + '"? Relics after it shift up one slot, which re-points their art.')) return;
+        CEDIT.pieces.splice(i, 1);
+        // CM_ART is keyed by slot index, so shift every key above the hole down to keep art with its relic.
+        const art = {}; for (const k in CM_ART){ const m = k.match(/^p(\d+)$/);
+          if (!m) { art[k] = CM_ART[k]; continue; }
+          const n = +m[1]; if (n === i) continue; art['p' + (n > i ? n-1 : n)] = CM_ART[k]; }
+        CM_ART = art; cmSaveArt(); cmSave(); cmApply(); draw(); });
+    }
+    bd.querySelectorAll('[data-cfu]').forEach(inp => inp.oninput = () => {   // unlock level (blank = ungated)
+      const id = inp.dataset.cfu, v = inp.value.trim();
+      if (v === '') delete CEDIT.unlocks[id]; else CEDIT.unlocks[id] = +v;
+      for (const k in GATED_SPECIAL_UNLOCK) if (CEDIT.unlocks[k] === undefined) delete GATED_SPECIAL_UNLOCK[k];
+      cmSave(); cmApply(); });
+    bd.querySelectorAll('[data-cfart]').forEach(im => im.onclick = () => {
+      const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+      inp.onchange = () => { const f = inp.files[0]; if (!f) return; const rd = new FileReader();
+        rd.onload = () => { const t = new Image();
+          t.onload = () => {   // downscale to the 128px cell the game actually draws — keeps localStorage sane
+            const c = document.createElement('canvas'); c.width = c.height = 128;
+            const s = Math.min(128/t.width, 128/t.height), dw = t.width*s, dh = t.height*s;
+            c.getContext('2d').drawImage(t, (128-dw)/2, (128-dh)/2, dw, dh);
+            CM_ART[im.dataset.cfart] = c.toDataURL('image/png'); cmSaveArt(); cmApply(); draw(); };
+          t.src = rd.result; };
+        rd.readAsDataURL(f); };
+      inp.click(); });
+    bd.querySelectorAll('[data-cfclr]').forEach(x => x.onclick = () => {
+      const k = x.dataset.cfclr, m = k.match(/^p(\d+)$/), s = k.match(/^s(\d+)$/);
+      delete CM_ART[k]; cmSaveArt();
+      const im = m ? SPRITES[+m[1]] : SP_SPRITES[+s[1]];             // restore the shipped asset
+      if (im) { im._failed = false; im.src = 'assets/' + (m ? SPRITE_FILES[+m[1]] : SPECIAL_DEFS[+s[1]].file); }
+      draw(); });
+  }
+  /* AUDIO tab wiring: import / preview / re-level / delete clips, and audition the UI voices. */
+  function wireAudio(){
+    const preview = names => { const l = cmList(names);
+      if (!l.length) return alert('No known clip in that field — it will use the built-in synth sound.');
+      playRand(l); };
+    bd.querySelectorAll('[data-cfplay]').forEach(b => b.onclick = () => {
+      const ks = b.dataset.cfplay.split('.'); preview(ks.reduce((a,k)=>a[k], CEDIT)); });
+    bd.querySelectorAll('[data-cfclip]').forEach(b => b.onclick = () => playClip(b.dataset.cfclip));
+    bd.querySelectorAll('[data-cfvol]').forEach(r => r.oninput = () => {
+      const n = r.dataset.cfvol; CM_AUD[n].vol = parseFloat(r.value);
+      cmSaveAud(); cmApply(); playClip(n); });                       // audition at the new level
+    bd.querySelectorAll('[data-cfsnddel]').forEach(b => b.onclick = () => {
+      const n = b.dataset.cfsnddel;
+      if (!confirm('Remove "' + n + '"? Any SFX field still naming it falls back to the synth sound.')) return;
+      delete CM_AUD[n]; if (CEDIT.music.clip === n) CEDIT.music.clip = '';
+      cmSaveAud(); cmSave(); cmApply(); draw(); });
+    const musPrev = bd.querySelector('#cfMusPrev');
+    if (musPrev) musPrev.onclick = () => { if (CEDIT.music.clip) playClip(CEDIT.music.clip);
+      else alert('Synth dirge selected — it only runs on a live board. Close the Forge and start a level to hear it.'); };
+    bd.querySelector('#cfSndAdd').onclick = () => {
+      const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'audio/*';
+      inp.onchange = () => { const f = inp.files[0]; if (!f) return;
+        // ~4 MB of base64 is already most of a 5 MB localStorage budget; refuse rather than corrupt the store.
+        if (f.size > 3 * 1024 * 1024 && !confirm('That file is ' + Math.round(f.size/1024/1024*10)/10 +
+            ' MB. Browser storage is only about 5 MB total — importing it may fail or crowd out your art. Continue?')) return;
+        let name = (prompt('Name this clip (used in the SFX fields):',
+                           f.name.replace(/\.[^.]+$/, '').replace(/[^a-z0-9_]/gi, '').slice(0, 20)) || '').trim();
+        if (!name) return;
+        if (CLIPS[name] && !CM_AUD[name]) return alert('"' + name + '" is a built-in clip name — pick another.');
+        const rd = new FileReader();
+        rd.onload = () => { const prev = CM_AUD[name];
+          CM_AUD[name] = { src: rd.result, vol: .55 };
+          if (!cmSaveAud()) { if (prev) CM_AUD[name] = prev; else delete CM_AUD[name]; return; }
+          cmApply(); draw(); playClip(name); };
+        rd.readAsDataURL(f); };
+      inp.click(); };
+  }
+  function open(){ w.classList.add('on'); draw(); }
+  addEventListener('keydown', e => { if (e.key === 'F2'){ e.preventDefault();
+    if (w.classList.contains('on')) w.classList.remove('on'); else open(); } });
+  /* There is no F2 on a phone, and the APK is the build the owner actually plays: press-and-hold
+     the 🐞 icon for 700 ms to open the Forge there. A plain tap still files a bug report. */
+  (function(){ let t = null;
+    bugBtn.addEventListener('pointerdown', () => { window.__cfHeld = false;
+      t = setTimeout(() => { window.__cfHeld = true; open(); }, 700); });   // bug's onclick reads __cfHeld
+    ['pointerup','pointerleave','pointercancel'].forEach(ev => bugBtn.addEventListener(ev, () => clearTimeout(t)));
+  })();
+})();
 resize();
 refreshMenu(false);   // pre-populates daily's (hidden) stats; harmless before that screen is ever shown
-// Cold-open: land straight in a live campaign board with zero clicks. The ?test= bot (above) already
-// calls start() itself once it has set up its own requested mode, so it must not be double-started here.
+// Boot: show the title screen, then PLAY starts a campaign board. The ?test= bot (above) already
+// calls start() itself once it has set up its own requested mode, so it must not be double-started
+// here — and it must NOT be gated behind the title screen, or headless/QA runs would hang on it.
 if (!location.search.includes('test')) resumeMode();
 setInterval(()=>{ if (!playing) dailyEl.textContent = fmtReset(); }, 30000);
 scheduleCreature();   // begin the ambient-creature drift loop (no-op under reduced motion)
+music.begin();        // arms the first-gesture unlock + the play/stop poller (see GAMEPLAY MUSIC)
 requestAnimationFrame(render);
 /* Assets are declared/preloaded and the splash is on screen → tell the portal loading is done. */
 PSDK.ready.then(()=>{ try { PSDK.loaded(); } catch(e){} });
