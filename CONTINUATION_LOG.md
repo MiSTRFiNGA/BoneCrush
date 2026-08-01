@@ -54,3 +54,19 @@ Shipped keyboard-only (F2) with no visible entry point, which made it invisible 
 Added a green **⚱ button** to the right-hand HUD column. It is revealed only on the owner's own
 builds — `localhost` / `127.0.0.1` / `file://` / the Capacitor APK / any URL with `?forge` — so a
 CrazyGames or Poki player never sees a content editor. F2 and the 🐞 press-and-hold still work.
+
+## 2026-08-01 — sprite editor · start-screen modes · per-level rules
+
+- **Sprite editor** — clicking any piece or relic thumbnail in the Forge now opens it at 3× on a
+  transparency checkerboard, with brush colour/size, erase, undo, clear, IMPORT PNG, SAVE LIVE,
+  REVERT TO SHIPPED and DOWNLOAD PNG (download → drop into `assets/` → commit = permanent).
+  Ported from HiVE WAR's FORGE sprite tab, minus the animation-strip controls Crypt Match's
+  single-image pieces don't need.
+- **Start screen** now offers CAMPAIGN / ENDLESS / DAILY under the big PLAY button. Previously the
+  three modes were reachable only by starting a run and backing out through 🏠.
+- **Per-level rules card** on every campaign level start, stating the goal *and what actually moves
+  the counter*. The big HUD icon now matches the objective (💀 score · relic art for collect ·
+  ⬇ drop · ▦ tiles) instead of always showing a skull — a still counter on a drop/tiles level was
+  reading as a bug because the skull implied "points".
+- Forge work across this session is now generalised in **`D:\Drive\AI\Memory\FORGE_STANDARD.md`** —
+  the contract for building this editor into every empire game.
