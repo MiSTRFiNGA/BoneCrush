@@ -93,6 +93,9 @@
   #objHud { top:16px; right:64px; margin-top:28px; font-size:clamp(12px,2.1vw,16px); font-weight:700; color:#d9a75f; }
   #menuBtn { top:140px; right:12px; font-size:clamp(18px,2.6vw,24px); cursor:pointer; opacity:.75; padding:4px 8px;
              background:rgba(20,16,14,.5); border:1px solid rgba(230,200,140,.3); border-radius:10px; }
+  /* owner-only Forge opener — green so it reads as a tool, not part of the game chrome */
+  #forgeBtn { top:184px; right:12px; font-size:clamp(18px,2.6vw,24px); cursor:pointer; opacity:.8; padding:4px 8px;
+              background:rgba(12,26,16,.75); border:1px solid #2c5c3a; border-radius:10px; color:#9fe86f; }
   #modeSelect, #levelSelect, #runEnd { inset:0; display:flex; flex-direction:column; align-items:center;
              justify-content:center; background:radial-gradient(ellipse at center, rgba(18,12,16,.6) 0%, rgba(6,4,7,.92) 100%);
              text-align:center; padding:20px; }
@@ -141,6 +144,10 @@
 <div class="ui" id="musicBtn" title="Music">🎵</div>
 <div class="ui" id="bug" title="Download bug report (F8) · hold to open the Crypt Forge">🐞</div>
 <div class="ui" id="menuBtn" title="Back to mode select">🏠</div>
+<!-- Crypt Forge opener. Hidden by default and revealed by the script only when this is the owner's
+     own build (localhost / file:// / the Capacitor APK) or ?forge is in the URL — a portal player
+     on crazygames.com must never see a content editor. F2 still works everywhere. -->
+<div class="ui hidden" id="forgeBtn" title="Crypt Forge — live content editor (F2)">⚱</div>
 <div class="ui" id="infoToggle" title="Ossuary legend — pieces, powers & rules">📖</div>
 <div class="ui hidden" id="infoPanel"></div>
 <div class="ui" id="toast"></div>
@@ -2269,8 +2276,16 @@ cmApply();
       inp.click(); };
   }
   function open(){ w.classList.add('on'); draw(); }
-  addEventListener('keydown', e => { if (e.key === 'F2'){ e.preventDefault();
-    if (w.classList.contains('on')) w.classList.remove('on'); else open(); } });
+  function toggle(){ if (w.classList.contains('on')) w.classList.remove('on'); else open(); }
+  addEventListener('keydown', e => { if (e.key === 'F2'){ e.preventDefault(); toggle(); } });
+  /* Visible ⚱ opener — shown only on the owner's own builds. Portal players (crazygames.com,
+     poki.com, itch, …) get nothing but the F2 shortcut, which they have no reason to press.
+     Capacitor serves the APK from localhost/capacitor://, so the phone build DOES get the button. */
+  const OWNER_BUILD = /^(localhost|127\.0\.0\.1|\[::1\]|)$/.test(location.hostname)
+    || location.protocol === 'capacitor:' || location.search.includes('forge');
+  const forgeBtn = document.getElementById('forgeBtn');
+  if (OWNER_BUILD){ forgeBtn.classList.remove('hidden');
+    forgeBtn.onclick = e => { e.stopPropagation(); toggle(); }; }
   /* There is no F2 on a phone, and the APK is the build the owner actually plays: press-and-hold
      the 🐞 icon for 700 ms to open the Forge there. A plain tap still files a bug report. */
   (function(){ let t = null;

@@ -67,6 +67,17 @@ def test_music_mute_is_separate_from_sfx_mute(page):
     assert page.evaluate("musicMuted") is False
 
 
+def test_forge_button_is_visible_and_opens_it(page):
+    # The ⚱ button only shows on the owner's own builds (localhost / capacitor / ?forge) — a
+    # portal player must never get a content editor. This fixture serves from 127.0.0.1.
+    btn = page.locator("#forgeBtn")
+    assert btn.is_visible()
+    btn.dispatch_event("click")                 # title overlay covers the HUD on boot
+    assert page.locator("#cf.on").count() == 1
+    btn.dispatch_event("click")
+    assert page.locator("#cf.on").count() == 0, "the button should toggle, not only open"
+
+
 def test_forge_opens_and_has_an_audio_tab(page):
     page.keyboard.press("F2")
     assert page.locator("#cf.on").count() == 1

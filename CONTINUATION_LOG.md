@@ -47,3 +47,10 @@ sounds, edit gameplay music, add mute music button."*
   untouched, and behaves like any other relic once the Forge edits it.
 - Regression coverage: `qa/test_forge.py` (headless Playwright — 6 tests, run with the packaging
   suite via `python -m pytest qa/ -q`). It caught a real load-order crash during this pass.
+
+### 2026-08-01 — follow-up: the Forge needed a button
+
+Shipped keyboard-only (F2) with no visible entry point, which made it invisible in practice.
+Added a green **⚱ button** to the right-hand HUD column. It is revealed only on the owner's own
+builds — `localhost` / `127.0.0.1` / `file://` / the Capacitor APK / any URL with `?forge` — so a
+CrazyGames or Poki player never sees a content editor. F2 and the 🐞 press-and-hold still work.
