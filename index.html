@@ -96,7 +96,17 @@
   /* owner-only Forge opener — green so it reads as a tool, not part of the game chrome */
   #forgeBtn { top:184px; right:12px; font-size:clamp(18px,2.6vw,24px); cursor:pointer; opacity:.8; padding:4px 8px;
               background:rgba(12,26,16,.75); border:1px solid #2c5c3a; border-radius:10px; color:#9fe86f; }
-  #modeSelect, #levelSelect, #runEnd { inset:0; display:flex; flex-direction:column; align-items:center;
+  /* Per-level rules card. Every campaign level states its goal AND how progress is scored, because
+     only score levels move the counter on every match — on collect/drop/tiles levels a still
+     counter reads as a bug unless the player was told what actually advances it. */
+  #lvIntro .lvNum { font-size:clamp(11px,2vw,14px); letter-spacing:4px; color:#c9a86a; text-transform:uppercase; }
+  #lvIntro .lvGoal { font-size:clamp(22px,4.4vw,38px); font-weight:900; color:#f6ecd7; margin:6px 0 2px;
+                     text-shadow:0 0 14px rgba(255,138,0,.45); display:flex; align-items:center; gap:12px; }
+  #lvIntro .lvGoal img { height:1.1em; width:1.1em; object-fit:contain; }
+  #lvIntro .lvRule { font-size:clamp(12px,2.2vw,16px); color:#e2cfa4; max-width:min(90vw,440px); line-height:1.6; margin-top:8px; }
+  #lvIntro .lvMoves { margin-top:14px; font-size:clamp(13px,2.4vw,18px); color:#d9a75f; font-weight:800; letter-spacing:1px; }
+  #lvIntro .lvTap { margin-top:20px; font-size:clamp(11px,2vw,14px); color:#a08a68; letter-spacing:2px; }
+  #modeSelect, #levelSelect, #runEnd, #lvIntro { inset:0; display:flex; flex-direction:column; align-items:center;
              justify-content:center; background:radial-gradient(ellipse at center, rgba(18,12,16,.6) 0%, rgba(6,4,7,.92) 100%);
              text-align:center; padding:20px; }
   .modeGrid { display:flex; flex-direction:column; gap:14px; margin-top:18px; width:min(92vw, 380px); }
@@ -174,7 +184,16 @@ window.PSDK = window.PSDK || { ready: Promise.resolve(), loaded(){}, start(){}, 
   </div>
   <button class="go" id="btnGo">DIG AGAIN</button>
   <button class="share hidden" id="btnShare">⚡ Challenge a friend</button>
-  <div class="hint">Swap two relics to match 3+ · 30 moves · chains multiply the score</div>
+  <!-- Mode picker ON the title screen (owner request 2026-08-01). The big button above is still the
+       one-tap default (resume the campaign frontier / dig again), but the three modes are now
+       reachable without first starting a run and backing out through the 🏠 panel. Same handlers as
+       #modeSelect — bindTap() wires both sets by id, see startTitleModes(). -->
+  <div class="modeGrid" id="titleModes">
+    <button class="modeBtn" id="tmCampaign">⚱️ CAMPAIGN<span class="modeSub">Level-by-level ossuary</span></button>
+    <button class="modeBtn" id="tmEndless">♾️ ENDLESS<span class="modeSub">Dig till the moves run dry</span></button>
+    <button class="modeBtn" id="tmDaily">📅 DAILY<span class="modeSub">Same board as everyone, today</span></button>
+  </div>
+  <div class="hint">Swap two relics to match 3+ · chains multiply the score</div>
   <div class="daily" id="daily"></div>
 </div>
 <!-- Non-blocking mode panel — reached ONLY via the 🏠 corner button, never shown automatically.
@@ -202,6 +221,14 @@ window.PSDK = window.PSDK || { ready: Promise.resolve(), loaded(){}, start(){}, 
 <!-- Campaign/Endless run-end popup (win, lose, or endless-out-of-moves). Built dynamically so the
      primary action (RETRY / NEXT LEVEL / DIG AGAIN) is always the prominent one-tap default —
      never a forced trip back through a menu. -->
+<!-- Per-level rules card, shown at the start of every campaign level (tap anywhere to dig). -->
+<div class="ui hidden" id="lvIntro">
+  <div class="lvNum" id="lvNum"></div>
+  <div class="lvGoal" id="lvGoal"></div>
+  <div class="lvRule" id="lvRule"></div>
+  <div class="lvMoves" id="lvMoves"></div>
+  <div class="lvTap">TAP TO DIG</div>
+</div>
 <div class="ui hidden" id="runEnd">
   <div class="big" id="reTitle"></div>
   <div class="reStars" id="reStars"></div>
@@ -1416,16 +1443,34 @@ const overlay = document.getElementById('overlay'), btnGo = document.getElementB
       movesEl = document.getElementById('moves'), toast = document.getElementById('toast'),
       scoreLine = document.getElementById('scoreLine'), resultBlock = document.getElementById('resultBlock'),
       dailyEl = document.getElementById('daily');
+/* ── OBJECTIVE VOCABULARY ── one source of truth for what a level asks and how it is scored.
+   Used by the rules card, the objective HUD line and the big counter's icon. Only 'score' moves
+   the counter on every match; the other three advance on a specific event, and saying so is the
+   whole point of this table (a still counter otherwise reads as a broken game). */
+function objInfo(lvl){
+  switch (lvl.objective){
+    case 'score': return { icon:'💀', short:'Score',
+      goal:`Score ${lvl.target}`,
+      rule:'Every match adds points, and chains multiply them — the counter climbs on every crush.' };
+    case 'clearType': { const nm = PIECE_NAMES[lvl.type] || 'relic';
+      return { icon:'🎯', art:pieceArtSrc(lvl.type), short:nm,
+        goal:`Crush ${lvl.count} × ${nm}`,
+        rule:`ONLY ${nm.toLowerCase()} matches count. Points still rise, but the counter moves just for ${nm.toLowerCase()}s — other matches are there to open up the board.` }; }
+    case 'drop': return { icon:'⬇', short:'Drop',
+      goal:`Drop ${lvl.count} relics`,
+      rule:'Clear the pieces UNDER a relic so it falls all the way to the bottom row. The counter moves only when something lands there — matching alone will not advance it.' };
+    default: return { icon:'▦', short:'Tiles',
+      goal:`Break ${lvl.count} crypt tiles`,
+      rule:'Cracked tiles are baked into the board. Match ON TOP of one to break it. The counter moves only when a tile breaks, not on every match.' };
+  }
+}
 function hudDraw(){
   movesEl.textContent = '⛏ ' + moves;   // score readout is animated in render() via tickScore()
   if (MODE === 'campaign' && campaignState){
-    const lvl = LEVELS[campaignLevelIdx];
-    // Counts moved to the big skull HUD (see goalNums) — this now only NAMES the objective, so the
-    // player still knows what they're collecting without the same fraction appearing twice.
-    const txt = lvl.objective === 'score' ? 'Score'
-      : lvl.objective === 'clearType' ? PIECE_NAMES[lvl.type]
-      : lvl.objective === 'drop' ? 'Drop' : 'Tiles';
-    objHud.textContent = `🎯 Lv.${campaignLevelIdx+1} · ${txt}`;
+    const lvl = LEVELS[campaignLevelIdx], info = objInfo(lvl);
+    // Counts live in the big HUD (see goalNums); this line NAMES the objective so the number there
+    // is never ambiguous about what it is counting.
+    objHud.textContent = `${info.icon} Lv.${campaignLevelIdx+1} · ${info.short}`;
     objHud.classList.remove('hidden');
   } else if (MODE === 'endless'){
     objHud.textContent = `♾️ Tier ${endlessTier+1}`;
@@ -1466,8 +1511,24 @@ function start(){
   [overlay, modeSelect, levelSelect, runEnd].forEach(el => el.classList.add('hidden'));
   hudDraw();
   runs++;
+  if (MODE === 'campaign') showLevelIntro();   // state the goal + how it is scored before the first move
   try { PSDK.start(); } catch(e){}          // gameplayStart on every mode's run start
 }
+/* Rules card. Shown on every campaign level start (including retries — it is the level's rulebook,
+   not a one-time tutorial) and dismissed by a tap anywhere on it. The board is already dealt
+   underneath; `busy` blocks input until it closes so a stray tap can't burn a move through it. */
+function showLevelIntro(){
+  const lvl = LEVELS[campaignLevelIdx], info = objInfo(lvl);
+  document.getElementById('lvNum').textContent = `Level ${campaignLevelIdx+1} of ${LEVELS.length}`;
+  document.getElementById('lvGoal').innerHTML =
+    (info.art ? `<img src="${info.art}" alt="">` : `<span>${info.icon}</span>`) + `<span>${info.goal}</span>`;
+  document.getElementById('lvRule').textContent = info.rule;
+  document.getElementById('lvMoves').textContent = `⛏ ${lvl.moves} moves`;
+  busy = true;
+  lvIntro.classList.remove('hidden');
+}
+function hideLevelIntro(){ if (lvIntro.classList.contains('hidden')) return;
+  lvIntro.classList.add('hidden'); busy = false; }
 function gameOver(){   // DAILY only — reached via handleRunEndChecks(), body unchanged from the original
   playing = false; scoreTarget = score; flyers.length = 0;   // bank any in-flight points onto the final total
   try { PSDK.stop(); } catch(e){}           // gameplayStop on game over (death screen)
@@ -1500,24 +1561,35 @@ window.onerror = m => showToast('⚠ ' + m);
    level select and run-end are reached from there or from natural play (level cleared/failed). */
 const modeSelect = document.getElementById('modeSelect'), levelSelect = document.getElementById('levelSelect'),
       runEnd = document.getElementById('runEnd'), menuBtn = document.getElementById('menuBtn'),
-      objHud = document.getElementById('objHud'), btnResume = document.getElementById('btnResume');
+      objHud = document.getElementById('objHud'), btnResume = document.getElementById('btnResume'),
+      lvIntro = document.getElementById('lvIntro');
 /* Dual click+touchend binding (matching btnGo's existing pattern) keeps every new control tap-
    responsive with no 300ms delay and no double-fire on touch devices. */
 function bindTap(el, fn){ ['click','touchend'].forEach(ev => el.addEventListener(ev, e => { e.stopPropagation(); e.preventDefault(); fn(e); })); }
 function openModePanel(){
   const wasPlaying = playing;
   playing = false;
+  hideLevelIntro();   // never leave the rules card stranded over the mode panel
   [overlay, levelSelect, runEnd].forEach(el => el.classList.add('hidden'));
   btnResume.classList.toggle('hidden', !wasPlaying);
   modeSelect.classList.remove('hidden');
   updateModePanelRetention();   // B2: refresh the streak/quests/chest/inventory summary line
 }
 bindTap(menuBtn, openModePanel);
+bindTap(lvIntro, hideLevelIntro);   // tap anywhere on the rules card to start digging
 bindTap(btnResume, ()=>{ modeSelect.classList.add('hidden'); playing = true; });
-bindTap(document.getElementById('btnCampaign'), ()=>{ modeSelect.classList.add('hidden'); showLevelSelect(); });
+bindTap(document.getElementById('btnCampaign'), ()=>{ modeSelect.classList.add('hidden'); levelSelectCameFrom = modeSelect; showLevelSelect(); });
 bindTap(document.getElementById('btnEndless'), ()=>{ modeSelect.classList.add('hidden'); MODE = 'endless'; beginGame(); });
 bindTap(document.getElementById('btnDaily'), ()=>{ modeSelect.classList.add('hidden'); MODE = 'daily'; beginGame(); });
-bindTap(document.getElementById('lsBack'), ()=>{ levelSelect.classList.add('hidden'); modeSelect.classList.remove('hidden'); });
+bindTap(document.getElementById('lsBack'), ()=>{ levelSelect.classList.add('hidden'); levelSelectCameFrom.classList.remove('hidden'); });
+/* Title-screen copies of the same three modes (owner request 2026-08-01 — the start screen used to
+   offer only PLAY, so a new player had no idea campaign/endless/daily existed). Same destinations
+   as the 🏠 panel's buttons; only the overlay being dismissed differs. lsBack returns to whichever
+   screen the picker was opened from, so it is re-pointed here rather than hardcoded to modeSelect. */
+let levelSelectCameFrom = modeSelect;
+bindTap(document.getElementById('tmCampaign'), ()=>{ overlay.classList.add('hidden'); levelSelectCameFrom = overlay; showLevelSelect(); });
+bindTap(document.getElementById('tmEndless'), ()=>{ overlay.classList.add('hidden'); MODE = 'endless'; beginGame(); });
+bindTap(document.getElementById('tmDaily'), ()=>{ overlay.classList.add('hidden'); MODE = 'daily'; beginGame(); });
 function showLevelSelect(){
   levelSelect.classList.remove('hidden');
   let h = '';
@@ -1624,7 +1696,10 @@ function tickScore(dt){
   hudPulse = Math.max(0, hudPulse - dt*3.0);
   hudFlash = Math.max(0, hudFlash - dt*2.4);
   const [cur, need] = goalNums();
-  hud.textContent = '💀 ' + cur + (need ? '/' + need : '');
+  // Icon matches the OBJECTIVE, not always a skull — on a drop/tiles/collect level the counter is
+  // not a score, and a skull next to it implied it was.
+  const icon = (MODE === 'campaign' && campaignState) ? objInfo(LEVELS[campaignLevelIdx]).icon : '💀';
+  hud.textContent = icon + ' ' + cur + (need ? '/' + need : '');
   hud.style.transform = 'scale(' + (1 + hudPulse*0.30).toFixed(3) + ')';
   if (hudFlash > 0){ const f = hudFlash;
     hud.style.color = '#fff';
@@ -2084,14 +2159,104 @@ cmApply();
     const k = kind + i, src = CM_ART[k] || (cur ? 'assets/' + cur : '');
     // Added relic with no art yet: an empty <img> renders as a broken-image icon, so show a
     // "drop art here" placeholder instead. Same data-cfart hook, same click-to-replace behaviour.
-    if (!src) return `<span data-cfart="${k}" title="click to add art" style="display:inline-flex;height:30px;width:30px;
+    if (!src) return `<span data-cfart="${k}" title="click to draw or import art" style="display:inline-flex;height:30px;width:30px;
       align-items:center;justify-content:center;border:1px dashed #2c5c3a;border-radius:3px;cursor:pointer;color:#5a8">＋</span>`;
-    return `<img data-cfart="${k}" src="${src}" title="click to replace" style="height:30px;width:30px;object-fit:contain;
+    return `<img data-cfart="${k}" src="${src}" title="click to open the sprite editor" style="height:30px;width:30px;object-fit:contain;
       border:1px solid #2c5c3a;border-radius:3px;cursor:pointer;background:#0c1710">` +
       (CM_ART[k] ? `<span data-cfclr="${k}" style="color:#f66;cursor:pointer;font-weight:900;margin-left:4px">✕</span>` : '');
   }
+  /* ══ SPRITE EDITOR ═══════════════════════════════════════════════════════
+     Clicking any relic thumbnail opens it here: the same art at 3× the board size, paintable with
+     a brush/eraser, replaceable from a PNG, revertible to the shipped asset, and downloadable so a
+     drawing can be baked back into assets/ permanently. Ported from HiVE WAR's FORGE sprite tab and
+     cut down to Crypt Match's shape — pieces here are single 128px images, not animation strips, so
+     there are no frame controls.
+     `work` is the editing canvas; nothing touches the game until SAVE LIVE writes it into CM_ART. */
+  const CM_CELL = 128;                       // the size drawPiece() actually renders
+  let spriteSel = null;                      // {key:'p3'|'s0', label} or null = normal tab body
+  let work = null, undoStack = [];
+  const brush = { col:'#e8dcc2', size:8, erase:false };
+  function spriteOpen(key){
+    const p = key.match(/^p(\d+)$/), s = key.match(/^s(\d+)$/);
+    const label = p ? (PIECE_NAMES[+p[1]] || 'Relic ' + (+p[1]+1)) : SPECIAL_DEFS[+s[1]].name;
+    spriteSel = { key, label, shipped: p ? SPRITE_FILES[+p[1]] : SPECIAL_DEFS[+s[1]].file };
+    work = document.createElement('canvas'); work.width = work.height = CM_CELL;
+    undoStack = [];
+    const src = CM_ART[key] || (spriteSel.shipped ? 'assets/' + spriteSel.shipped : '');
+    if (src){ const im = new Image();
+      im.onload = () => { const g = work.getContext('2d'),
+              sc = Math.min(CM_CELL/im.width, CM_CELL/im.height), w = im.width*sc, hh = im.height*sc;
+        g.drawImage(im, (CM_CELL-w)/2, (CM_CELL-hh)/2, w, hh); spritePaint(); };
+      im.src = src; }                        // blank canvas until it decodes (or forever, if none)
+    draw();
+  }
+  function spriteSave(){
+    CM_ART[spriteSel.key] = work.toDataURL('image/png');
+    cmSaveArt(); cmApply();
+    drawSpriteEditor();   // re-render so REVERT TO SHIPPED appears now that an override exists
+    showForgeNote('Saved — live on the board now. DOWNLOAD PNG and drop it into assets/ to make it permanent in the repo.');
+  }
+  function spritePaint(){ const pc = bd.querySelector('#cfPaint'); if (!pc || !work) return;
+    const g = pc.getContext('2d'); g.imageSmoothingEnabled = false;
+    g.clearRect(0, 0, pc.width, pc.height);
+    // checkerboard first, so transparent pixels are visibly transparent rather than "black art"
+    const t = 12; for (let y = 0; y < pc.height; y += t) for (let x = 0; x < pc.width; x += t){
+      g.fillStyle = ((x/t + y/t) & 1) ? '#12211a' : '#0c1710'; g.fillRect(x, y, t, t); }
+    g.drawImage(work, 0, 0, pc.width, pc.height);
+  }
+  function spriteBindPaint(){ const pc = bd.querySelector('#cfPaint'); if (!pc) return;
+    let down = false;
+    const dot = e => { const r = pc.getBoundingClientRect(), sc = CM_CELL / pc.width;
+      const x = (e.clientX - r.left) * sc, y = (e.clientY - r.top) * sc, g = work.getContext('2d');
+      g.save();
+      if (brush.erase){ g.globalCompositeOperation = 'destination-out'; g.fillStyle = '#000'; }
+      else g.fillStyle = brush.col;
+      g.beginPath(); g.arc(x, y, brush.size/2, 0, 7); g.fill(); g.restore(); spritePaint(); };
+    pc.addEventListener('pointerdown', e => { down = true; spritePushUndo(); dot(e); pc.setPointerCapture(e.pointerId); });
+    pc.addEventListener('pointermove', e => { if (down) dot(e); });
+    ['pointerup','pointercancel'].forEach(ev => pc.addEventListener(ev, () => { down = false; }));
+  }
+  function spritePushUndo(){ undoStack.push(work.getContext('2d').getImageData(0, 0, CM_CELL, CM_CELL));
+    if (undoStack.length > 25) undoStack.shift(); }
+  function showForgeNote(msg){ const n = bd.querySelector('#cfNote'); if (n) n.textContent = msg; else alert(msg); }
+  function drawSpriteEditor(){
+    const has = !!CM_ART[spriteSel.key];
+    bd.innerHTML = `<div class="row"><button id="cfSpBack">◀ ALL ART</button>
+        <b style="color:#9fe86f;font-size:14px">${spriteSel.label}</b>
+        <span style="color:#7a9">${CM_CELL}×${CM_CELL} · ${has ? 'Forge art' : (spriteSel.shipped ? 'shipped art' : 'empty')}</span></div>
+      <div class="hint">Paint straight onto the relic, or IMPORT a PNG to replace it wholesale. Nothing touches the board
+        until <b>SAVE LIVE</b>. The checkerboard is transparency — erase back to it rather than painting black.</div>
+      <div class="row">🎨 <input type="color" id="cfCol" value="${brush.col}">
+        SIZE <input type="range" id="cfSize" min="1" max="40" value="${brush.size}" style="width:120px">
+        <button id="cfErase">${brush.erase ? '✏ PAINT' : '⌫ ERASE'}</button>
+        <button id="cfUndo">↩ UNDO</button><button id="cfClear" class="warn">CLEAR</button></div>
+      <canvas id="cfPaint" width="384" height="384" style="border:1px solid #2c5c3a;border-radius:4px;cursor:crosshair;touch-action:none"></canvas>
+      <div class="row"><button id="cfImp2">⇧ IMPORT PNG</button><button id="cfSpSave">💾 SAVE LIVE</button>
+        <button id="cfDl">⇩ DOWNLOAD PNG</button>
+        ${has ? '<button id="cfRev" class="warn">REVERT TO SHIPPED</button>' : ''}</div>
+      <div class="hint" id="cfNote"></div>`;
+    bd.querySelector('#cfSpBack').onclick = () => { spriteSel = null; draw(); };
+    bd.querySelector('#cfCol').oninput = e => { brush.col = e.target.value; brush.erase = false;
+      bd.querySelector('#cfErase').textContent = '⌫ ERASE'; };
+    bd.querySelector('#cfSize').oninput = e => { brush.size = +e.target.value; };
+    bd.querySelector('#cfErase').onclick = e => { brush.erase = !brush.erase;
+      e.target.textContent = brush.erase ? '✏ PAINT' : '⌫ ERASE'; };
+    bd.querySelector('#cfUndo').onclick = () => { if (!undoStack.length) return;
+      work.getContext('2d').putImageData(undoStack.pop(), 0, 0); spritePaint(); };
+    bd.querySelector('#cfClear').onclick = () => { spritePushUndo();
+      work.getContext('2d').clearRect(0, 0, CM_CELL, CM_CELL); spritePaint(); };
+    bd.querySelector('#cfSpSave').onclick = spriteSave;
+    bd.querySelector('#cfDl').onclick = () => { const a = document.createElement('a');
+      a.href = work.toDataURL('image/png'); a.download = spriteSel.key + '_' + spriteSel.label.replace(/\W+/g,'_') + '.png'; a.click(); };
+    bd.querySelector('#cfImp2').onclick = () => importArt(spriteSel.key, () => spriteOpen(spriteSel.key));
+    const rev = bd.querySelector('#cfRev');
+    if (rev) rev.onclick = () => { if (!confirm('Drop the Forge art and go back to the shipped PNG?')) return;
+      clearArt(spriteSel.key); spriteOpen(spriteSel.key); };
+    spritePaint(); spriteBindPaint();
+  }
   function draw(){
     tabsEl.querySelectorAll('div').forEach((d,i)=>d.classList.toggle('on', i===tab));
+    if (spriteSel){ drawSpriteEditor(); return; }
     let h = '';
     if (tab===0){
       h = `<div class="hint">Every relic on the board: art, name, score value, burst colour and match sound.
@@ -2219,24 +2384,36 @@ cmApply();
       if (v === '') delete CEDIT.unlocks[id]; else CEDIT.unlocks[id] = +v;
       for (const k in GATED_SPECIAL_UNLOCK) if (CEDIT.unlocks[k] === undefined) delete GATED_SPECIAL_UNLOCK[k];
       cmSave(); cmApply(); });
-    bd.querySelectorAll('[data-cfart]').forEach(im => im.onclick = () => {
-      const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
-      inp.onchange = () => { const f = inp.files[0]; if (!f) return; const rd = new FileReader();
-        rd.onload = () => { const t = new Image();
-          t.onload = () => {   // downscale to the 128px cell the game actually draws — keeps localStorage sane
-            const c = document.createElement('canvas'); c.width = c.height = 128;
-            const s = Math.min(128/t.width, 128/t.height), dw = t.width*s, dh = t.height*s;
-            c.getContext('2d').drawImage(t, (128-dw)/2, (128-dh)/2, dw, dh);
-            CM_ART[im.dataset.cfart] = c.toDataURL('image/png'); cmSaveArt(); cmApply(); draw(); };
-          t.src = rd.result; };
-        rd.readAsDataURL(f); };
-      inp.click(); });
-    bd.querySelectorAll('[data-cfclr]').forEach(x => x.onclick = () => {
-      const k = x.dataset.cfclr, m = k.match(/^p(\d+)$/), s = k.match(/^s(\d+)$/);
-      delete CM_ART[k]; cmSaveArt();
-      const im = m ? SPRITES[+m[1]] : SP_SPRITES[+s[1]];             // restore the shipped asset
-      if (im) { im._failed = false; im.src = 'assets/' + (m ? SPRITE_FILES[+m[1]] : SPECIAL_DEFS[+s[1]].file); }
-      draw(); });
+    // Thumbnail click opens the sprite editor (owner request 2026-08-01) rather than firing a blind
+    // file dialog — the editor has IMPORT inside it, plus paint / revert / download.
+    bd.querySelectorAll('[data-cfart]').forEach(im => im.onclick = () => spriteOpen(im.dataset.cfart));
+    bd.querySelectorAll('[data-cfclr]').forEach(x => x.onclick = () => { clearArt(x.dataset.cfclr); draw(); });
+  }
+  /* Import a PNG into an art slot, downscaled to the 128px cell the game draws (keeps localStorage
+     sane and matches every shipped piece). Shared by the sprite editor and any future caller. */
+  function importArt(key, done){
+    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+    inp.onchange = () => { const f = inp.files[0]; if (!f) return; const rd = new FileReader();
+      rd.onload = () => { const t = new Image();
+        t.onload = () => {
+          const c = document.createElement('canvas'); c.width = c.height = CM_CELL;
+          const s = Math.min(CM_CELL/t.width, CM_CELL/t.height), dw = t.width*s, dh = t.height*s;
+          c.getContext('2d').drawImage(t, (CM_CELL-dw)/2, (CM_CELL-dh)/2, dw, dh);
+          CM_ART[key] = c.toDataURL('image/png'); cmSaveArt(); cmApply();
+          if (done) done(); else draw(); };
+        t.onerror = () => alert('Could not read that image — a transparent PNG works best.');
+        t.src = rd.result; };
+      rd.readAsDataURL(f); };
+    inp.click();
+  }
+  /* Drop a Forge override and put the shipped asset back (or blank, for an added relic). */
+  function clearArt(key){
+    const m = key.match(/^p(\d+)$/), s = key.match(/^s(\d+)$/);
+    delete CM_ART[key]; cmSaveArt();
+    const im = m ? SPRITES[+m[1]] : SP_SPRITES[+s[1]];
+    const file = m ? SPRITE_FILES[+m[1]] : SPECIAL_DEFS[+s[1]].file;
+    if (im && file) { im._failed = false; im.src = 'assets/' + file; }
+    else if (im) { im._failed = true; im.removeAttribute('src'); }   // added relic: back to the vector shape
   }
   /* AUDIO tab wiring: import / preview / re-level / delete clips, and audition the UI voices. */
   function wireAudio(){

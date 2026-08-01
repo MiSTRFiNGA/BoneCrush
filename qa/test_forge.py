@@ -111,6 +111,59 @@ def test_edited_piece_sound_and_ui_voice_take_effect(page):
     assert page.evaluate("UI_SFX.pick") == []
 
 
+def test_clicking_a_relic_opens_the_sprite_editor(page):
+    page.keyboard.press("F2")
+    page.click('[data-cfart="p0"]')                      # skull thumbnail
+    assert page.locator("#cfPaint").is_visible(), "sprite editor canvas should open"
+    assert "Skull" in page.locator("#cf .bd").inner_text()
+    for ctl in ("#cfCol", "#cfSize", "#cfErase", "#cfUndo", "#cfImp2", "#cfSpSave", "#cfDl"):
+        assert page.locator(ctl).count() == 1, f"missing control {ctl}"
+    # paint on it and save — the piece's live sprite must switch to the edited data URL
+    box = page.locator("#cfPaint").bounding_box()
+    page.mouse.move(box["x"] + 100, box["y"] + 100)
+    page.mouse.down(); page.mouse.move(box["x"] + 180, box["y"] + 180); page.mouse.up()
+    page.click("#cfSpSave")
+    assert page.evaluate("SPRITES[0].src").startswith("data:image/png")
+    assert page.evaluate("!!CM_ART.p0") is True
+    # and revert puts the shipped PNG back
+    page.on("dialog", lambda d: d.accept())
+    page.click("#cfRev")
+    assert page.evaluate("SPRITES[0].src").endswith("assets/skull.png")
+    page.click("#cfSpBack")
+    assert page.locator("#cfAdd").count() == 1, "back should return to the PIECES list"
+
+
+def test_relic_art_also_opens_the_editor(page):
+    page.keyboard.press("F2")
+    page.locator("#cfT div", has_text="RELICS").click()
+    page.click('[data-cfart="s0"]')
+    assert page.locator("#cfPaint").is_visible()
+    assert "Potion" in page.locator("#cf .bd").inner_text()
+
+
+def test_title_screen_offers_the_three_modes(page):
+    for btn in ("#tmCampaign", "#tmEndless", "#tmDaily"):
+        assert page.locator(btn).is_visible(), f"{btn} should be on the title screen"
+    page.locator("#tmEndless").dispatch_event("click")
+    assert page.evaluate("MODE") == "endless"
+    assert page.evaluate("playing") is True
+
+
+def test_campaign_level_states_its_rules(page):
+    # level 3 (index 2) is a 'drop' level — the one whose counter looks stuck without an explanation
+    page.evaluate("() => { MODE='campaign'; campaignLevelIdx=2; start(); }")
+    assert page.locator("#lvIntro").is_visible()
+    txt = page.locator("#lvIntro").inner_text()
+    assert "Drop" in txt and "bottom row" in txt
+    assert "moves" in txt.lower()
+    assert page.evaluate("busy") is True, "board must not take input under the rules card"
+    page.locator("#lvIntro").dispatch_event("click")
+    assert page.locator("#lvIntro").is_visible() is False
+    assert page.evaluate("busy") is False
+    # the big counter must not claim to be a score on a non-score level
+    assert page.evaluate("document.getElementById('hud').textContent").startswith("⬇")
+
+
 def test_imported_clip_registers_in_the_bank(page):
     # 1-frame silent wav — enough to prove the data-URL path registers a usable CLIPS entry
     page.evaluate("""() => {
