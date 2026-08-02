@@ -19,7 +19,7 @@ Sources: campaign curve in `campaign_curve_40.json`; size audit in `store/RELAUN
 Build (after Claude’s campaign/cold-open land):
 
 ```bat
-cd /d D:\Dev\BoneCrush
+cd /d D:\Dev\CryptMatch
 python build.py
 ```
 
@@ -39,7 +39,7 @@ Old name **“Crypt Match” is spent** on CG. Listing must read as a **genuinel
 | 4 | **Bone Cabinet** | Weird-brand fit for art direction; less SEO-obvious. |
 | 5 | **Ossuary Puzzle** | Premium/dark; may read slower for younger players. |
 
-**Internal repo folder** may stay `BoneCrush` until Eric renames deliberately.  
+**Internal repo folder** renamed to `D:\Dev\CryptMatch` (2026-08-01). GitHub remote may still be `BoneCrush`.  
 **Logo lockup:** new wordmark only — do **not** reuse the rejected listing’s exact title treatment.
 
 ---
