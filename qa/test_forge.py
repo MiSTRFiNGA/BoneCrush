@@ -118,6 +118,12 @@ def test_clicking_a_relic_opens_the_sprite_editor(page):
     assert "Skull" in page.locator("#cf .bd").inner_text()
     for ctl in ("#cfCol", "#cfSize", "#cfErase", "#cfUndo", "#cfImp2", "#cfSpSave", "#cfDl"):
         assert page.locator(ctl).count() == 1, f"missing control {ctl}"
+    # F7 / CM.5 image-editor v3 controls (rotate lock + fine nudge, alpha-key, tiling; GIF off)
+    for ctl in ("#cfRot", "#cfRotLock", "#cfRotGo", "#cfRotL", "#cfRotR",
+                "#cfKey", "#cfTol", "#cfKeyGo", "#cfTileX", "#cfTileY", "#cfTileGo", "#cfGifOff"):
+        assert page.locator(ctl).count() == 1, f"missing v3 image control {ctl}"
+    assert page.locator("#cfGifOff").is_disabled()
+    assert "single images" in page.locator("#cfGifHint").inner_text().lower()
     # paint on it and save — the piece's live sprite must switch to the edited data URL
     box = page.locator("#cfPaint").bounding_box()
     page.mouse.move(box["x"] + 100, box["y"] + 100)

@@ -2178,13 +2178,14 @@ cmApply();
   const CM_CELL = 128;                       // the size drawPiece() actually renders
   let spriteSel = null;                      // {key:'p3'|'s0', label} or null = normal tab body
   let work = null, undoStack = [];
+  let appliedRotation = 0, tilePreview = { x: 1, y: 1 };  // v3 image-editor state
   const brush = { col:'#e8dcc2', size:8, erase:false };
   function spriteOpen(key){
     const p = key.match(/^p(\d+)$/), s = key.match(/^s(\d+)$/);
     const label = p ? (PIECE_NAMES[+p[1]] || 'Relic ' + (+p[1]+1)) : SPECIAL_DEFS[+s[1]].name;
     spriteSel = { key, label, shipped: p ? SPRITE_FILES[+p[1]] : SPECIAL_DEFS[+s[1]].file };
     work = document.createElement('canvas'); work.width = work.height = CM_CELL;
-    undoStack = [];
+    undoStack = []; appliedRotation = 0; tilePreview = { x: 1, y: 1 };
     const src = CM_ART[key] || (spriteSel.shipped ? 'assets/' + spriteSel.shipped : '');
     if (src){ const im = new Image();
       im.onload = () => { const g = work.getContext('2d'),
@@ -2206,6 +2207,14 @@ cmApply();
     const t = 12; for (let y = 0; y < pc.height; y += t) for (let x = 0; x < pc.width; x += t){
       g.fillStyle = ((x/t + y/t) & 1) ? '#12211a' : '#0c1710'; g.fillRect(x, y, t, t); }
     g.drawImage(work, 0, 0, pc.width, pc.height);
+    // Seam preview when tiling > 1×1 (Forge v3 image-editor parity).
+    if (tilePreview && tilePreview.x * tilePreview.y > 1) {
+      const tw = pc.width / tilePreview.x, th = pc.height / tilePreview.y;
+      g.save(); g.strokeStyle = 'rgba(159,232,111,.55)'; g.lineWidth = 1; g.setLineDash([4, 4]);
+      for (let x = 1; x < tilePreview.x; x++) { g.beginPath(); g.moveTo(x * tw, 0); g.lineTo(x * tw, pc.height); g.stroke(); }
+      for (let y = 1; y < tilePreview.y; y++) { g.beginPath(); g.moveTo(0, y * th); g.lineTo(pc.width, y * th); g.stroke(); }
+      g.restore();
+    }
   }
   function spriteBindPaint(){ const pc = bd.querySelector('#cfPaint'); if (!pc) return;
     let down = false;
@@ -2219,11 +2228,44 @@ cmApply();
     pc.addEventListener('pointermove', e => { if (down) dot(e); });
     ['pointerup','pointercancel'].forEach(ev => pc.addEventListener(ev, () => { down = false; }));
   }
-  function spritePushUndo(){ undoStack.push(work.getContext('2d').getImageData(0, 0, CM_CELL, CM_CELL));
-    if (undoStack.length > 25) undoStack.shift(); }
-  function rotateArt(deg){ spritePushUndo(); const out=document.createElement('canvas'); out.width=out.height=CM_CELL; const g=out.getContext('2d');g.translate(CM_CELL/2,CM_CELL/2);g.rotate(deg*Math.PI/180);g.drawImage(work,-CM_CELL/2,-CM_CELL/2);work=out;spritePaint(); }
-  function alphaKey(hex,tol){ const m=/^#?([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i.exec(hex);if(!m)return; spritePushUndo();const d=work.getContext('2d').getImageData(0,0,CM_CELL,CM_CELL),rgb=[1,2,3].map(i=>parseInt(m[i],16));for(let i=0;i<d.data.length;i+=4)if(Math.hypot(d.data[i]-rgb[0],d.data[i+1]-rgb[1],d.data[i+2]-rgb[2])<=tol)d.data[i+3]=0;work.getContext('2d').putImageData(d,0,0);spritePaint(); }
-  function tileArt(nx,ny){ nx=Math.min(16,Math.max(1,nx));ny=Math.min(16,Math.max(1,ny));if(CM_CELL*CM_CELL*nx*ny>16000000)return showForgeNote('Tile output exceeds the 16 MP editing budget.');spritePushUndo();const out=document.createElement('canvas');out.width=CM_CELL*nx;out.height=CM_CELL*ny;const g=out.getContext('2d');for(let y=0;y<ny;y++)for(let x=0;x<nx;x++)g.drawImage(work,x*CM_CELL,y*CM_CELL);work=out;spritePaint(); }
+  function spritePushUndo(){
+    // Capture full work size (not a hard-coded cell) so tile/rotate undos stay consistent.
+    undoStack.push(work.getContext('2d').getImageData(0, 0, work.width, work.height));
+    if (undoStack.length > 25) undoStack.shift();
+  }
+  function rotateArt(deg){
+    if (!deg) return;
+    spritePushUndo();
+    const out = document.createElement('canvas'); out.width = out.height = CM_CELL;
+    const g = out.getContext('2d');
+    g.translate(CM_CELL / 2, CM_CELL / 2);
+    g.rotate(deg * Math.PI / 180);
+    g.drawImage(work, -work.width / 2, -work.height / 2);
+    work = out; spritePaint();
+  }
+  function alphaKey(hex, tol){
+    const m = /^#?([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i.exec(hex); if (!m) return;
+    spritePushUndo();
+    const d = work.getContext('2d').getImageData(0, 0, work.width, work.height);
+    const rgb = [1, 2, 3].map(i => parseInt(m[i], 16));
+    for (let i = 0; i < d.data.length; i += 4)
+      if (Math.hypot(d.data[i] - rgb[0], d.data[i + 1] - rgb[1], d.data[i + 2] - rgb[2]) <= tol)
+        d.data[i + 3] = 0;
+    work.getContext('2d').putImageData(d, 0, 0); spritePaint();
+  }
+  // Match-3 pieces are fixed CM_CELL² — tiling fills the *cell* with a repeated pattern
+  // (does not grow the canvas). Seam lines are drawn in the paint preview.
+  function tileArt(nx, ny){
+    nx = Math.min(16, Math.max(1, nx | 0)); ny = Math.min(16, Math.max(1, ny | 0));
+    spritePushUndo();
+    const src = document.createElement('canvas'); src.width = work.width; src.height = work.height;
+    src.getContext('2d').drawImage(work, 0, 0);
+    const out = document.createElement('canvas'); out.width = out.height = CM_CELL;
+    const g = out.getContext('2d'), tw = CM_CELL / nx, th = CM_CELL / ny;
+    for (let y = 0; y < ny; y++) for (let x = 0; x < nx; x++)
+      g.drawImage(src, 0, 0, src.width, src.height, x * tw, y * th, tw, th);
+    work = out; tilePreview = { x: nx, y: ny }; spritePaint();
+  }
   function showForgeNote(msg){ const n = bd.querySelector('#cfNote'); if (n) n.textContent = msg; else alert(msg); }
   function drawSpriteEditor(){
     const has = !!CM_ART[spriteSel.key];
@@ -2231,37 +2273,73 @@ cmApply();
         <b style="color:#9fe86f;font-size:14px">${spriteSel.label}</b>
         <span style="color:#7a9">${CM_CELL}×${CM_CELL} · ${has ? 'Forge art' : (spriteSel.shipped ? 'shipped art' : 'empty')}</span></div>
       <div class="hint">Paint straight onto the relic, or IMPORT a PNG to replace it wholesale. Nothing touches the board
-        until <b>SAVE LIVE</b>. The checkerboard is transparency — erase back to it rather than painting black.</div>
+        until <b>SAVE LIVE</b>. The checkerboard is transparency — erase back to it rather than painting black.
+        <b>Art-only rotate</b> never changes board hitboxes (pieces stay on the same grid cell).</div>
       <div class="row">🎨 <input type="color" id="cfCol" value="${brush.col}">
         SIZE <input type="range" id="cfSize" min="1" max="40" value="${brush.size}" style="width:120px">
         <button id="cfErase">${brush.erase ? '✏ PAINT' : '⌫ ERASE'}</button>
         <button id="cfUndo">↩ UNDO</button><button id="cfClear" class="warn">CLEAR</button></div>
-      <div class="row">ROTATE <input id="cfRot" type="number" value="15" step="1" style="width:48px">° <button id="cfRotGo">↻ APPLY</button> ALPHA <input id="cfKey" type="color" value="#ff00ff"><input id="cfTol" type="number" value="24" min="0" style="width:42px"><button id="cfKeyGo">✦ KEY</button> TILE <input id="cfTileX" type="number" value="1" min="1" max="16" style="width:36px">×<input id="cfTileY" type="number" value="1" min="1" max="16" style="width:36px"><button id="cfTileGo">▦ APPLY</button></div>
+      <div class="row">ART ROTATE <input id="cfRot" type="number" min="-180" max="180" step="1" value="0" style="width:48px" aria-label="Rotate degrees">
+        <label style="color:#9fe86f"><input type="checkbox" id="cfRotLock"> 15° LOCK</label>
+        <button id="cfRotGo">↻ APPLY</button><button id="cfRotL">◀ 1°</button><button id="cfRotR">1° ▶</button>
+        <span style="color:#567">art only</span></div>
+      <div class="row">ALPHA KEY <input id="cfKey" type="color" value="#ff00ff" aria-label="Key color">
+        TOL <input id="cfTol" type="number" value="24" min="0" max="442" style="width:42px" aria-label="Key tolerance">
+        <button id="cfKeyGo">✦ REMOVE</button>
+        TILE <input id="cfTileX" type="number" value="1" min="1" max="16" style="width:36px" aria-label="Tile X">×
+        <input id="cfTileY" type="number" value="1" min="1" max="16" style="width:36px" aria-label="Tile Y">
+        <button id="cfTileGo">▦ APPLY</button>
+        <span style="color:#567">seam lines drawn on preview</span></div>
       <canvas id="cfPaint" width="384" height="384" style="border:1px solid #2c5c3a;border-radius:4px;cursor:crosshair;touch-action:none"></canvas>
-      <div class="row"><button id="cfImp2">⇧ IMPORT PNG</button><button id="cfSpSave">💾 SAVE LIVE</button>
+      <div class="row"><button id="cfImp2">⇧ IMPORT PNG</button>
+        <button id="cfGifOff" disabled title="Crypt Match pieces are single images">⇧ GIF (disabled)</button>
+        <button id="cfSpSave">💾 SAVE LIVE</button>
         <button id="cfDl">⇩ DOWNLOAD PNG</button>
         ${has ? '<button id="cfRev" class="warn">REVERT TO SHIPPED</button>' : ''}</div>
+      <div class="hint" id="cfGifHint" style="color:#c9a86a">Crypt Match pieces are single images — animated import isn't supported.</div>
       <div class="hint" id="cfNote"></div>`;
-    bd.querySelector('#cfSpBack').onclick = () => { spriteSel = null; draw(); };
+    bd.querySelector('#cfSpBack').onclick = () => { spriteSel = null; appliedRotation = 0; draw(); };
     bd.querySelector('#cfCol').oninput = e => { brush.col = e.target.value; brush.erase = false;
       bd.querySelector('#cfErase').textContent = '⌫ ERASE'; };
     bd.querySelector('#cfSize').oninput = e => { brush.size = +e.target.value; };
     bd.querySelector('#cfErase').onclick = e => { brush.erase = !brush.erase;
       e.target.textContent = brush.erase ? '✏ PAINT' : '⌫ ERASE'; };
-    bd.querySelector('#cfUndo').onclick = () => { if (!undoStack.length) return;
-      work.getContext('2d').putImageData(undoStack.pop(), 0, 0); spritePaint(); };
+    bd.querySelector('#cfUndo').onclick = () => {
+      if (!undoStack.length) return;
+      const img = undoStack.pop();
+      if (work.width !== img.width || work.height !== img.height) {
+        work = document.createElement('canvas'); work.width = img.width; work.height = img.height;
+      }
+      work.getContext('2d').putImageData(img, 0, 0); spritePaint();
+    };
     bd.querySelector('#cfClear').onclick = () => { spritePushUndo();
-      work.getContext('2d').clearRect(0, 0, CM_CELL, CM_CELL); spritePaint(); };
-    bd.querySelector('#cfRotGo').onclick=()=>rotateArt(+bd.querySelector('#cfRot').value||0);
-    bd.querySelector('#cfKeyGo').onclick=()=>alphaKey(bd.querySelector('#cfKey').value,Math.max(0,+bd.querySelector('#cfTol').value||0));
-    bd.querySelector('#cfTileGo').onclick=()=>tileArt(+bd.querySelector('#cfTileX').value||1,+bd.querySelector('#cfTileY').value||1);
+      work.getContext('2d').clearRect(0, 0, work.width, work.height); spritePaint(); };
+    // Rotate: absolute dial with optional 15° lock + fine ±1° nudge (template v3 parity).
+    const rotateFromControl = delta => {
+      const el = bd.querySelector('#cfRot'), lock = bd.querySelector('#cfRotLock').checked;
+      let base = parseFloat(el.value) || 0, v = base + delta;
+      if (lock && delta) v = (delta > 0 ? Math.floor(base / 15) + 1 : Math.ceil(base / 15) - 1) * 15;
+      else if (lock) v = Math.round(v / 15) * 15;
+      el.value = v;
+      const d = v - appliedRotation;
+      if (d) { rotateArt(d); appliedRotation = v; }
+    };
+    bd.querySelector('#cfRotGo').onclick = () => rotateFromControl(0);
+    bd.querySelector('#cfRotL').onclick = () => rotateFromControl(-1);
+    bd.querySelector('#cfRotR').onclick = () => rotateFromControl(1);
+    bd.querySelector('#cfKeyGo').onclick = () =>
+      alphaKey(bd.querySelector('#cfKey').value, Math.max(0, +bd.querySelector('#cfTol').value || 0));
+    bd.querySelector('#cfTileGo').onclick = () =>
+      tileArt(+bd.querySelector('#cfTileX').value || 1, +bd.querySelector('#cfTileY').value || 1);
     bd.querySelector('#cfSpSave').onclick = spriteSave;
     bd.querySelector('#cfDl').onclick = () => { const a = document.createElement('a');
       a.href = work.toDataURL('image/png'); a.download = spriteSel.key + '_' + spriteSel.label.replace(/\W+/g,'_') + '.png'; a.click(); };
-    bd.querySelector('#cfImp2').onclick = () => importArt(spriteSel.key, () => spriteOpen(spriteSel.key));
+    bd.querySelector('#cfImp2').onclick = () => importArt(spriteSel.key, () => { appliedRotation = 0; spriteOpen(spriteSel.key); });
+    bd.querySelector('#cfGifOff').onclick = () =>
+      showForgeNote('Crypt Match pieces are single images — animated import isn\'t supported.');
     const rev = bd.querySelector('#cfRev');
     if (rev) rev.onclick = () => { if (!confirm('Drop the Forge art and go back to the shipped PNG?')) return;
-      clearArt(spriteSel.key); spriteOpen(spriteSel.key); };
+      clearArt(spriteSel.key); appliedRotation = 0; tilePreview = { x: 1, y: 1 }; spriteOpen(spriteSel.key); };
     spritePaint(); spriteBindPaint();
   }
   function draw(){
