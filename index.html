@@ -2221,6 +2221,9 @@ cmApply();
   }
   function spritePushUndo(){ undoStack.push(work.getContext('2d').getImageData(0, 0, CM_CELL, CM_CELL));
     if (undoStack.length > 25) undoStack.shift(); }
+  function rotateArt(deg){ spritePushUndo(); const out=document.createElement('canvas'); out.width=out.height=CM_CELL; const g=out.getContext('2d');g.translate(CM_CELL/2,CM_CELL/2);g.rotate(deg*Math.PI/180);g.drawImage(work,-CM_CELL/2,-CM_CELL/2);work=out;spritePaint(); }
+  function alphaKey(hex,tol){ const m=/^#?([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i.exec(hex);if(!m)return; spritePushUndo();const d=work.getContext('2d').getImageData(0,0,CM_CELL,CM_CELL),rgb=[1,2,3].map(i=>parseInt(m[i],16));for(let i=0;i<d.data.length;i+=4)if(Math.hypot(d.data[i]-rgb[0],d.data[i+1]-rgb[1],d.data[i+2]-rgb[2])<=tol)d.data[i+3]=0;work.getContext('2d').putImageData(d,0,0);spritePaint(); }
+  function tileArt(nx,ny){ nx=Math.min(16,Math.max(1,nx));ny=Math.min(16,Math.max(1,ny));if(CM_CELL*CM_CELL*nx*ny>16000000)return showForgeNote('Tile output exceeds the 16 MP editing budget.');spritePushUndo();const out=document.createElement('canvas');out.width=CM_CELL*nx;out.height=CM_CELL*ny;const g=out.getContext('2d');for(let y=0;y<ny;y++)for(let x=0;x<nx;x++)g.drawImage(work,x*CM_CELL,y*CM_CELL);work=out;spritePaint(); }
   function showForgeNote(msg){ const n = bd.querySelector('#cfNote'); if (n) n.textContent = msg; else alert(msg); }
   function drawSpriteEditor(){
     const has = !!CM_ART[spriteSel.key];
@@ -2233,6 +2236,7 @@ cmApply();
         SIZE <input type="range" id="cfSize" min="1" max="40" value="${brush.size}" style="width:120px">
         <button id="cfErase">${brush.erase ? '✏ PAINT' : '⌫ ERASE'}</button>
         <button id="cfUndo">↩ UNDO</button><button id="cfClear" class="warn">CLEAR</button></div>
+      <div class="row">ROTATE <input id="cfRot" type="number" value="15" step="1" style="width:48px">° <button id="cfRotGo">↻ APPLY</button> ALPHA <input id="cfKey" type="color" value="#ff00ff"><input id="cfTol" type="number" value="24" min="0" style="width:42px"><button id="cfKeyGo">✦ KEY</button> TILE <input id="cfTileX" type="number" value="1" min="1" max="16" style="width:36px">×<input id="cfTileY" type="number" value="1" min="1" max="16" style="width:36px"><button id="cfTileGo">▦ APPLY</button></div>
       <canvas id="cfPaint" width="384" height="384" style="border:1px solid #2c5c3a;border-radius:4px;cursor:crosshair;touch-action:none"></canvas>
       <div class="row"><button id="cfImp2">⇧ IMPORT PNG</button><button id="cfSpSave">💾 SAVE LIVE</button>
         <button id="cfDl">⇩ DOWNLOAD PNG</button>
@@ -2248,6 +2252,9 @@ cmApply();
       work.getContext('2d').putImageData(undoStack.pop(), 0, 0); spritePaint(); };
     bd.querySelector('#cfClear').onclick = () => { spritePushUndo();
       work.getContext('2d').clearRect(0, 0, CM_CELL, CM_CELL); spritePaint(); };
+    bd.querySelector('#cfRotGo').onclick=()=>rotateArt(+bd.querySelector('#cfRot').value||0);
+    bd.querySelector('#cfKeyGo').onclick=()=>alphaKey(bd.querySelector('#cfKey').value,Math.max(0,+bd.querySelector('#cfTol').value||0));
+    bd.querySelector('#cfTileGo').onclick=()=>tileArt(+bd.querySelector('#cfTileX').value||1,+bd.querySelector('#cfTileY').value||1);
     bd.querySelector('#cfSpSave').onclick = spriteSave;
     bd.querySelector('#cfDl').onclick = () => { const a = document.createElement('a');
       a.href = work.toDataURL('image/png'); a.download = spriteSel.key + '_' + spriteSel.label.replace(/\W+/g,'_') + '.png'; a.click(); };
