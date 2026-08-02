@@ -313,25 +313,23 @@ const store = {
 };
 
 /* ── CAMPAIGN LEVEL TABLE ──────────────────────────────────────────────────
-   Structural placeholder only — ~10 gentle levels covering all 4 objective
-   types (score / clearType / drop / tiles) so the scaffold (level select,
-   objective HUD, stars, unlocks, special-gating) is fully exercised end to
-   end. This whole array is meant to be thrown away: every consumer reads
+   The first 10 levels are score-only onboarding; the remaining curve introduces
+   clearType, drop, and tiles objectives. Every consumer reads
    LEVELS[i].{objective,target,type,count,moves,stars} generically, so
    dropping in Grok's balanced curve here is a pure data swap. */
 const LEVELS = [
-  // Grok's 40-level curve (campaign_curve_40.json, 2026-07-29) — L1-5 nearly unloseable
-  // (the conversion metric), 6-15 gentle, 16-30 real difficulty, 31-40 hard but never a wall.
-  { objective:'score',     target:400,  moves:30, stars:[400,700,1100] },
-  { objective:'clearType', type:0, count:8,  moves:30, stars:[8,14,20] },
-  { objective:'drop',      count:4,  moves:30, stars:[4,7,11] },
-  { objective:'score',     target:700,  moves:30, stars:[700,1100,1600] },
-  { objective:'tiles',     count:6,  moves:32, stars:[6,10,16] },
-  { objective:'clearType', type:4, count:10, moves:28, stars:[10,16,24] },
-  { objective:'score',     target:1100, moves:28, stars:[1100,1700,2400] },
-  { objective:'drop',      count:6,  moves:28, stars:[6,10,15] },
-  { objective:'tiles',     count:10, moves:28, stars:[10,16,24] },
-  { objective:'score',     target:1500, moves:28, stars:[1500,2300,3200] },
+  // Owner rule (2026-08-01): L1–10 are score-only onboarding. No type, drop, tile,
+  // modifier, or secondary goal may appear before L11; the first new rule is L11 clearType.
+  { objective:'score', target: 600, moves:30, stars:[ 600, 900,1300] },
+  { objective:'score', target: 800, moves:30, stars:[ 800,1200,1700] },
+  { objective:'score', target:1000, moves:30, stars:[1000,1500,2100] },
+  { objective:'score', target:1200, moves:30, stars:[1200,1800,2500] },
+  { objective:'score', target:1400, moves:32, stars:[1400,2100,2900] },
+  { objective:'score', target:1600, moves:28, stars:[1600,2400,3300] },
+  { objective:'score', target:1800, moves:28, stars:[1800,2700,3700] },
+  { objective:'score', target:2000, moves:28, stars:[2000,3000,4100] },
+  { objective:'score', target:2250, moves:28, stars:[2250,3350,4600] },
+  { objective:'score', target:2500, moves:28, stars:[2500,3700,5100] },
   { objective:'clearType', type:5, count:12, moves:26, stars:[12,18,26] },
   { objective:'drop',      count:8,  moves:26, stars:[8,12,18] },
   { objective:'score',     target:2000, moves:26, stars:[2000,3000,4200] },
@@ -698,6 +696,11 @@ function allowedSpecialIndices(){
   return idxs.length ? idxs : [0];   // never return an empty pool
 }
 function randomSpecialIndex(r){ const pool = allowedSpecialIndices(); return pool[Math.floor(r()*pool.length)]; }
+// CM.6: the campaign's first ten levels are pure score onboarding. Keep every
+// power-piece source off (including banked-charge placement) until level 11.
+function pointsOnlyCampaign(){ return MODE === 'campaign' && campaignLevelIdx < 10; }
+function spawnedPiece(r){ return !pointsOnlyCampaign() && r() < 0.045
+  ? SP_BASE + randomSpecialIndex(r) : Math.floor(r()*TYPES); }
 
 /* ── RETENTION ECONOMY (Phase B2, campaign_curve_40.json → retention_economy) ────────────────
    D1 retention was 0.00% on mobile — "nothing to come back for". Everything below grants
@@ -809,6 +812,7 @@ function applyPendingRewardsToRun(){
     moves += bonus; persistSave();
     showToast(`✨ +${bonus} bonus moves banked from rewards!`, 3000);
   }
+  if (pointsOnlyCampaign()) return;
   const MAX_CHARGE_PLACEMENTS = 2;   // cap so a big charge stash can't trivialize a level's objective
   let placed = 0;
   for (const id of Object.keys(save.inventory.charges)){
@@ -1125,11 +1129,10 @@ async function resolveBoard(chain){
     let write = N-1;
     for (let y = N-1; y >= 0; y--) if (grid[y][x] >= 0) grid[write--][x] = grid[y][x];
     for (let y = write; y >= 0; y--)
-      grid[y][x] = (r() < 0.045) ? (SP_BASE + randomSpecialIndex(r))   // ~4.5% special
-                                 : Math.floor(r()*TYPES);
+      grid[y][x] = spawnedPiece(r);                    // ~4.5% special after level 10
   }
   // guarantee a special drop after a big chain so power plays feel rewarded
-  if (bigChain && seedCell){ let done = false;
+  if (!pointsOnlyCampaign() && bigChain && seedCell){ let done = false;
     for (let y = 0; y < N && !done; y++) for (let x = 0; x < N && !done; x++)
       if (!isSpecial(grid[y][x])){ grid[y][x] = SP_BASE + randomSpecialIndex(r); done = true; } }
   await sleep(160);
@@ -1270,7 +1273,7 @@ async function detonateSpecial(sx, sy){
     let write = N-1;
     for (let y = N-1; y >= 0; y--) if (grid[y][x] >= 0) grid[write--][x] = grid[y][x];
     for (let y = write; y >= 0; y--)
-      grid[y][x] = (r() < 0.045) ? (SP_BASE + randomSpecialIndex(r)) : Math.floor(r()*TYPES);
+      grid[y][x] = spawnedPiece(r);
   }
   await sleep(160);
   resolveBoard(2);   // cascade any matches the blast created

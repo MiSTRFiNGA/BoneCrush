@@ -150,18 +150,23 @@ def test_title_screen_offers_the_three_modes(page):
 
 
 def test_campaign_level_states_its_rules(page):
-    # level 3 (index 2) is a 'drop' level — the one whose counter looks stuck without an explanation
+    # Owner rule: the first ten levels are score-only onboarding; L11 introduces clearType.
+    assert page.evaluate("LEVELS.slice(0, 10).every(level => level.objective === 'score' && !('type' in level) && !('count' in level))") is True
+    assert page.evaluate("LEVELS[10].objective") == "clearType"
+    # The points-only guard blocks both ordinary and forced special-piece spawns through L10.
+    assert page.evaluate("() => { MODE='campaign'; campaignLevelIdx=9; return spawnedPiece(() => 0) < SP_BASE; }") is True
+    assert page.evaluate("() => { MODE='campaign'; campaignLevelIdx=10; return spawnedPiece(() => 0) >= SP_BASE; }") is True
+    # A mid-onboarding level states score rules and uses the score HUD.
     page.evaluate("() => { MODE='campaign'; campaignLevelIdx=2; start(); }")
     assert page.locator("#lvIntro").is_visible()
     txt = page.locator("#lvIntro").inner_text()
-    assert "Drop" in txt and "bottom row" in txt
+    assert "Score" in txt and "Every match adds points" in txt
     assert "moves" in txt.lower()
     assert page.evaluate("busy") is True, "board must not take input under the rules card"
     page.locator("#lvIntro").dispatch_event("click")
     assert page.locator("#lvIntro").is_visible() is False
     assert page.evaluate("busy") is False
-    # the big counter must not claim to be a score on a non-score level
-    assert page.evaluate("document.getElementById('hud').textContent").startswith("⬇")
+    assert page.evaluate("document.getElementById('hud').textContent").startswith("💀")
 
 
 def test_imported_clip_registers_in_the_bank(page):
