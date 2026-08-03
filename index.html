@@ -665,11 +665,80 @@ const SP_SPRITES = SPECIAL_DEFS.map(d => { const im = new Image(); im.onerror = 
    panel and the sprite loaders read them long before the Forge UI itself is defined further down. */
 const CM_KEY = 'cryptmatch_forge_v1', CM_ART_KEY = 'cryptmatch_forge_art_v1',
       CM_AUD_KEY = 'cryptmatch_forge_audio_v1';
+/* CM.8 — binary SFX lives in IndexedDB (HW media-store pattern). localStorage holds only a
+   thin name→meta index after migration; data URLs no longer sit in the 5 MB quota. */
+const CM_AUD_DB = 'cryptmatch_forge_media_v1', CM_AUD_STORE = 'audio';
 let CM_ART = {}; try { CM_ART = JSON.parse(localStorage.getItem(CM_ART_KEY) || '{}'); } catch(e){}
 /* Imported audio: { clipName: {src:'data:audio/…', vol:0.5} }. Registered into CLIPS by cmApply,
    which makes every imported sound usable anywhere a clip name is accepted — piece match SFX,
    relic detonations, the select/move/deny voices and the music track. */
 let CM_AUD = {}; try { CM_AUD = JSON.parse(localStorage.getItem(CM_AUD_KEY) || '{}'); } catch(e){}
+let cmAudQueue = Promise.resolve();
+function queueCmAud(task){ const next = cmAudQueue.then(task, task); cmAudQueue = next.catch(()=>{}); return next; }
+function cmAudDB(){ return new Promise((resolve, reject) => {
+  const q = indexedDB.open(CM_AUD_DB, 1);
+  q.onupgradeneeded = () => q.result.createObjectStore(CM_AUD_STORE, { keyPath: 'id' });
+  q.onsuccess = () => resolve(q.result); q.onerror = () => reject(q.error);
+}); }
+async function cmAudPut(name, entry){
+  const db = await cmAudDB();
+  const blob = await (await fetch(entry.src)).blob();
+  return new Promise((resolve, reject) => {
+    const q = db.transaction(CM_AUD_STORE, 'readwrite').objectStore(CM_AUD_STORE)
+      .put({ id: 'aud:' + name, name, blob, vol: entry.vol == null ? .55 : entry.vol });
+    q.onsuccess = () => resolve(); q.onerror = () => reject(q.error);
+  });
+}
+async function cmAudDel(name){
+  const db = await cmAudDB();
+  return new Promise((resolve, reject) => {
+    const q = db.transaction(CM_AUD_STORE, 'readwrite').objectStore(CM_AUD_STORE).delete('aud:' + name);
+    q.onsuccess = () => resolve(); q.onerror = () => reject(q.error);
+  });
+}
+async function cmAudAll(){
+  const db = await cmAudDB();
+  return new Promise((resolve, reject) => {
+    const q = db.transaction(CM_AUD_STORE).objectStore(CM_AUD_STORE).getAll();
+    q.onsuccess = () => resolve(q.result || []); q.onerror = () => reject(q.error);
+  });
+}
+function blobToDataUrl(blob){
+  return new Promise((resolve, reject) => {
+    const r = new FileReader(); r.onload = () => resolve(r.result); r.onerror = () => reject(r.error); r.readAsDataURL(blob);
+  });
+}
+/* Hydrate CM_AUD from IndexedDB; migrate any legacy localStorage data-URL bank once. */
+async function cmAudHydrate(){
+  try {
+    const rows = await cmAudAll();
+    const fromIdb = {};
+    for (const row of rows) {
+      if (!row || !row.name || !row.blob) continue;
+      fromIdb[row.name] = { src: await blobToDataUrl(row.blob), vol: row.vol == null ? .55 : row.vol };
+    }
+    let legacy = {};
+    try { legacy = JSON.parse(localStorage.getItem(CM_AUD_KEY) || '{}') || {}; } catch(e){}
+    // IDB wins on name clash; migrate missing legacy entries into IDB.
+    for (const [name, e] of Object.entries(legacy)) {
+      if (!e || !e.src) continue;
+      if (fromIdb[name]) continue;
+      fromIdb[name] = e;
+      try { await cmAudPut(name, e); } catch(_){}
+    }
+    if (Object.keys(fromIdb).length) {
+      CM_AUD = fromIdb;
+      // Drop fat data URLs from localStorage after successful IDB write — keep tiny name list only.
+      try {
+        const thin = {};
+        for (const n of Object.keys(CM_AUD)) thin[n] = { vol: CM_AUD[n].vol == null ? .55 : CM_AUD[n].vol, idb: 1 };
+        localStorage.setItem(CM_AUD_KEY, JSON.stringify(thin));
+      } catch(_){}
+    }
+  } catch (e) {
+    // IndexedDB unavailable (private mode / harness) — keep whatever localStorage already loaded.
+  }
+}
 const CM_BASE_TYPES = SPRITE_FILES.length;   // how many piece types SHIPPED — above this = Forge-added
 /* Where a piece's art comes from: a Forge-replaced/added image (data URL) or the shipped PNG.
    Added pieces with no art yet fall back to the vector relic drawn in their colour. */
@@ -2070,12 +2139,38 @@ function cmMerge(saved){ if (!saved) return;
 function cmSave(){ try { localStorage.setItem(CM_KEY, JSON.stringify(CEDIT)); } catch(e){} }
 function cmSaveArt(){ try { localStorage.setItem(CM_ART_KEY, JSON.stringify(CM_ART)); }
   catch(e){ alert('Storage full — clear some replaced art first.'); } }
-function cmSaveAud(){ try { localStorage.setItem(CM_AUD_KEY, JSON.stringify(CM_AUD)); return true; }
-  catch(e){ alert('Storage full — remove an imported sound (or a shorter music track) first.'); return false; } }
+/* CM.8 — write audio blobs to IndexedDB; keep a thin localStorage index for boot before hydrate. */
+function cmSaveAud(){
+  try {
+    const thin = {};
+    for (const n of Object.keys(CM_AUD)) thin[n] = { vol: CM_AUD[n].vol == null ? .55 : CM_AUD[n].vol, idb: 1 };
+    localStorage.setItem(CM_AUD_KEY, JSON.stringify(thin));
+  } catch(e){ /* thin index is optional once IDB holds the blobs */ }
+  queueCmAud(async () => {
+    const rows = await cmAudAll();
+    const keep = new Set(Object.keys(CM_AUD).map(n => 'aud:' + n));
+    for (const row of rows) if (!keep.has(row.id)) await cmAudDel(row.name);
+    for (const [name, e] of Object.entries(CM_AUD)) {
+      if (!e || !e.src) continue;
+      // Skip re-put if this is still a stub from thin index without a data URL yet.
+      if (typeof e.src === 'string' && e.src.indexOf('data:') === 0) await cmAudPut(name, e);
+    }
+  });
+  return true;
+}
 const cmList = s => String(s||'').split(',').map(x=>x.trim()).filter(x=>CLIPS[x]);   // drop unknown clip names
+function cmClipMediaSrc(name){
+  // Prefer uploaded data URL; else the live Audio element's resolved src (bundled sounds/*).
+  if (CM_AUD[name] && CM_AUD[name].src && String(CM_AUD[name].src).indexOf('data:') === 0)
+    return CM_AUD[name].src;
+  const c = CLIPS[name];
+  if (c && c.src) return c.src;
+  return '';
+}
 function cmApply(){
   // 1. imported audio → CLIPS, so the name resolves everywhere before any sfx list is validated
   for (const name in CM_AUD){ const e = CM_AUD[name];
+    if (!e || !e.src || String(e.src).indexOf('data:') !== 0) continue;   // skip thin IDB stubs
     if (!CLIPS[name] || CLIPS[name]._cmSrc !== e.src){
       CLIPS[name] = loadClipSrc(e.src, e.vol == null ? .55 : e.vol); CLIPS[name]._cmSrc = e.src; }
     else CLIPS[name].volume = e.vol == null ? .55 : e.vol; }
@@ -2102,9 +2197,9 @@ function cmApply(){
   // drawPiece/COLS lookups. Specials (>= SP_BASE) are untouched.
   for (let y = 0; y < grid.length; y++) for (let x = 0; x < (grid[y]||[]).length; x++){
     const t = grid[y][x]; if (!isSpecial(t) && t >= TYPES) grid[y][x] = t % TYPES; }
-  // 3. UI voices + music
+  // 3. UI voices + music (CM.8 — bundled bank clips allowed as music, not only uploads)
   UI_SFX.pick = cmList(CEDIT.ui.pick); UI_SFX.swap = cmList(CEDIT.ui.swap); UI_SFX.bad = cmList(CEDIT.ui.bad);
-  const mc = CEDIT.music, track = mc.clip && CM_AUD[mc.clip] ? CM_AUD[mc.clip].src : '';
+  const mc = CEDIT.music, track = mc.clip ? cmClipMediaSrc(mc.clip) : '';
   const changed = track !== MUSIC_CFG.src;
   MUSIC_CFG.src = track; MUSIC_CFG.volume = Math.min(1, Math.max(0, +mc.volume || 0));
   MUSIC_CFG.bpm = Math.min(200, Math.max(30, +mc.bpm || 76));
@@ -2122,6 +2217,8 @@ function cmApply(){
     if (im) { im._failed = false; im.src = CM_ART[k]; } }
 }
 cmApply();
+// CM.8 — finish audio hydrate after IndexedDB is ready, then re-apply so uploads re-register into CLIPS.
+cmAudHydrate().then(() => { try { cmApply(); } catch(_){} }).catch(() => {});
 (function CRYPTFORGE(){
   const st = document.createElement('style');
   st.textContent = `#cf{position:fixed;inset:5% 3%;background:rgba(8,6,14,.97);border:1px solid #7fc76f;border-radius:8px;
@@ -2149,14 +2246,44 @@ cmApply();
     d.onclick=()=>{ tab=i; draw(); }; tabsEl.appendChild(d); });
   w.querySelector('#cfX').onclick = () => w.classList.remove('on');
   // Recomputed per draw — the clip bank grows as sounds are imported on the AUDIO tab.
-  const clipNames = () => Object.keys(CLIPS);
+  const clipNames = () => Object.keys(CLIPS).sort();
   const clipList = () => clipNames().join(', ');
+  /* CM.8 — HiVE WAR `snd()` pattern: pick from the bundled+imported bank instead of typing names.
+     multi=true → <select multiple> (comma-join on change) for piece/relic random pools. */
+  function sfxSelect(path, cur, multi){
+    const selected = String(cur == null ? '' : cur).split(',').map(x => x.trim()).filter(Boolean);
+    const names = clipNames();
+    if (multi) {
+      return `<select multiple data-cp="${path}" data-sfx-multi="1" size="4" style="min-width:150px;height:74px"
+        title="Ctrl/Cmd-click to pick several — one is chosen at random per play">` +
+        names.map(n => `<option value="${n}"${selected.includes(n) ? ' selected' : ''}>${n}</option>`).join('') +
+        `</select>`;
+    }
+    const one = selected[0] || '';
+    return `<select data-cp="${path}" style="min-width:150px">` +
+      `<option value="">(synth / default)</option>` +
+      names.map(n => `<option value="${n}"${n === one ? ' selected' : ''}>${n}</option>`).join('') +
+      `</select>`;
+  }
   // one delegated input handler: data-cp="pieces.2.value" writes straight into CEDIT
   bd.addEventListener('input', e => { const p = e.target.dataset.cp; if (!p) return;
     const ks = p.split('.'), last = ks.pop(), o = ks.reduce((a,k)=>a[k], CEDIT);
-    o[last] = (e.target.type === 'number' || e.target.type === 'range') ? parseFloat(e.target.value) : e.target.value;
+    if (e.target.tagName === 'SELECT' && e.target.multiple) {
+      o[last] = [...e.target.selectedOptions].map(opt => opt.value).join(',');
+    } else {
+      o[last] = (e.target.type === 'number' || e.target.type === 'range') ? parseFloat(e.target.value) : e.target.value;
+    }
     cmSave(); cmApply();
     if (p === 'music.volume') e.target.nextElementSibling.textContent = Math.round(o[last]*100) + '%'; });
+  // Multi-selects fire 'change' more reliably than 'input' in some browsers.
+  bd.addEventListener('change', e => {
+    if (!e.target.dataset || !e.target.dataset.cp) return;
+    if (e.target.tagName !== 'SELECT') return;
+    const p = e.target.dataset.cp, ks = p.split('.'), last = ks.pop(), o = ks.reduce((a,k)=>a[k], CEDIT);
+    if (e.target.multiple) o[last] = [...e.target.selectedOptions].map(opt => opt.value).join(',');
+    else o[last] = e.target.value;
+    cmSave(); cmApply();
+  });
   const m0 = s => String(s == null ? '' : s).replace(/"/g, '&quot;');   // safe in a value="…" attribute
   function art(kind, i, cur){   // thumbnail that opens a file picker to replace that sprite
     const k = kind + i, src = CM_ART[k] || (cur ? 'assets/' + cur : '');
@@ -2348,8 +2475,9 @@ cmApply();
     let h = '';
     if (tab===0){
       h = `<div class="hint">Every relic on the board: art, name, score value, burst colour and match sound.
-        VALUE = base points for one piece (chain multipliers apply on top). SFX = comma-separated clip names, one picked
-        at random per match. COLOUR tints the shatter particles and is also the fallback shape drawn when a piece has no art.
+        VALUE = base points for one piece (chain multipliers apply on top). <b>MATCH SFX</b> = pick from the bundled
+        sound bank (Ctrl/Cmd-click several → one is chosen at random). COLOUR tints the shatter particles and is the
+        fallback shape when a piece has no art.
         <br>ADD RELIC appends a brand-new type — it starts spawning immediately as the board refills, so drop art on it first.
         Only added relics can be deleted (the 8 shipped ones stay), and the board needs at least 4 types.
         <br>Available clips: <b>${clipList()}</b></div>
@@ -2358,7 +2486,7 @@ cmApply();
         <td><input data-cp="pieces.${i}.name" value="${p.name}" style="width:110px"></td>
         <td><input type="number" data-cp="pieces.${i}.value" value="${p.value}" style="width:56px"></td>
         <td><input type="color" data-cp="pieces.${i}.color" value="${p.color||'#c9a86a'}" style="width:34px;height:22px;padding:0;border:none"></td>
-        <td><input data-cp="pieces.${i}.sfx" value="${p.sfx}" style="width:190px"></td>
+        <td>${sfxSelect('pieces.'+i+'.sfx', p.sfx, true)}</td>
         <td>${i >= CM_BASE_TYPES && CEDIT.pieces.length > 4
               ? `<button class="warn" data-cfdel="${i}" title="delete this added relic">✕</button>`
               : '<span style="color:#456">shipped</span>'}</td></tr>`; });
@@ -2367,14 +2495,14 @@ cmApply();
     } else if (tab===1){
       h = `<div class="hint">Relic art, name, glow colour, description and detonation sound.
         <b>What each relic DOES is fixed in code</b> — this edits how it looks, reads and sounds, plus which campaign level unlocks it
-        (blank = always available). Available clips: <b>${clipList()}</b></div>
+        (blank = always available). <b>SFX</b> is a dropdown of the bundled bank (multi-select). Available clips: <b>${clipList()}</b></div>
         <table><tr><th>ART</th><th>RELIC</th><th>GLOW</th><th>DESCRIPTION</th><th>SFX</th><th>UNLOCK LVL</th></tr>`;
       CEDIT.specials.forEach((s,i)=>{ const id = SPECIAL_DEFS[i].id;
         h += `<tr><td>${art('s',i,SPECIAL_DEFS[i].file)}</td>
         <td><input data-cp="specials.${i}.name" value="${s.name}" style="width:100px"></td>
         <td><input type="color" data-cp="specials.${i}.glow" value="${s.glow}" style="width:34px;height:22px;padding:0;border:none"></td>
         <td><input data-cp="specials.${i}.label" value="${s.label}" style="width:180px"></td>
-        <td><input data-cp="specials.${i}.sfx" value="${s.sfx}" style="width:150px"></td>
+        <td>${sfxSelect('specials.'+i+'.sfx', s.sfx, true)}</td>
         <td><input type="number" data-cfu="${id}" value="${CEDIT.unlocks[id]!==undefined?CEDIT.unlocks[id]:''}" placeholder="—" style="width:52px"></td></tr>`; });
       h += '</table>';
     } else if (tab===2){
@@ -2387,44 +2515,48 @@ cmApply();
         <td><input type="number" data-cp="levels.${i}.moves" value="${L.moves}" style="width:52px"></td></tr>`; });
       h += '</table>';
     } else if (tab===3){
-      const m = CEDIT.music, opts = ['<option value="">— synth crypt dirge (built in) —</option>']
-        .concat(Object.keys(CM_AUD).map(n => `<option value="${n}"${m.clip===n?' selected':''}>${n}</option>`)).join('');
-      h = `<div class="hint">The three interaction voices. Leave a field EMPTY for the shipped synth beep, or put in
-        clip names (comma-separated → one picked at random). Per-relic <i>match</i> sounds live on the PIECES tab and
-        relic detonations on RELICS — everything here and there accepts any clip in the bank below.
+      const m = CEDIT.music;
+      // CM.8 — music picker lists the full bank (bundled + imported), same as HW AUDIO.names()
+      const musOpts = ['<option value="">— synth crypt dirge (built in) —</option>']
+        .concat(clipNames().map(n => `<option value="${n}"${m.clip===n?' selected':''}>${n}${CM_AUD[n]?' ★':''}</option>`)).join('');
+      h = `<div class="hint"><b>CM.8</b> — pick SFX from the dropdown bank (no typing). Empty = shipped synth.
+        Multi-select (Ctrl/Cmd-click) for random pools. Per-relic match sounds live on PIECES; detonations on RELICS.
         <br>Available clips: <b>${clipList()}</b></div>
         <table><tr><th>EVENT</th><th>CLIPS</th><th></th></tr>
         <tr><td>SELECT <span style="color:#567">— tapping a relic</span></td>
-            <td><input data-cp="ui.pick" value="${m0(CEDIT.ui.pick)}" placeholder="(synth tick)" style="width:230px"></td>
+            <td>${sfxSelect('ui.pick', CEDIT.ui.pick, true)}</td>
             <td><button data-cfplay="ui.pick">▶</button></td></tr>
         <tr><td>MOVE <span style="color:#567">— committing a swap</span></td>
-            <td><input data-cp="ui.swap" value="${m0(CEDIT.ui.swap)}" placeholder="(synth swap)" style="width:230px"></td>
+            <td>${sfxSelect('ui.swap', CEDIT.ui.swap, true)}</td>
             <td><button data-cfplay="ui.swap">▶</button></td></tr>
         <tr><td>DENIED <span style="color:#567">— illegal swap</span></td>
-            <td><input data-cp="ui.bad" value="${m0(CEDIT.ui.bad)}" placeholder="(synth buzz)" style="width:230px"></td>
+            <td>${sfxSelect('ui.bad', CEDIT.ui.bad, true)}</td>
             <td><button data-cfplay="ui.bad">▶</button></td></tr></table>
 
         <div class="hint" style="margin-top:14px">GAMEPLAY MUSIC — plays while a board is live, stops on the menus, and has its
-        own 🎵 mute button in game (separate from 🔊). Pick an imported track, or leave it on the built-in synth dirge and
-        tune its tempo/key. TEMPO and KEY only affect the synth.</div>
-        <div class="row"><b style="color:#9fe86f">TRACK</b><select data-cp="music.clip">${opts}</select>
-          <button id="cfMusPrev">▶ TEST</button><span style="color:#7a9">(starts a board to hear it in play)</span></div>
+        own 🎵 mute button in game (separate from 🔊). Pick any bank track (★ = uploaded), or leave it on the built-in synth
+        dirge. TEMPO and KEY only affect the synth.</div>
+        <div class="row"><b style="color:#9fe86f">TRACK</b><select data-cp="music.clip">${musOpts}</select>
+          <button id="cfMusPrev">▶ TEST</button><span style="color:#7a9">(clip preview; synth only on a live board)</span></div>
         <div class="row"><b style="color:#9fe86f">VOLUME</b><input type="range" min="0" max="1" step="0.05"
             data-cp="music.volume" value="${m.volume}" style="width:160px"><span>${Math.round(m.volume*100)}%</span></div>
         <div class="row"><b style="color:#9fe86f">TEMPO</b><input type="number" data-cp="music.bpm" value="${m.bpm}" style="width:60px"> BPM
           <b style="color:#9fe86f;margin-left:12px">KEY</b><input type="number" data-cp="music.root" value="${m.root}" style="width:60px"> Hz root</div>
 
-        <div class="hint" style="margin-top:14px">IMPORTED SOUND BANK — drop in your own mp3/ogg/wav and the name becomes usable
-        in every SFX field above, and as a music track. Files are stored in this browser (and in the Forge export), so keep them
-        small: a few hundred KB for effects, and note that a long music track can fill the ~5 MB storage budget on its own.</div>
-        <div class="row"><button id="cfSndAdd">＋ IMPORT SOUND</button></div>
+        <div class="hint" style="margin-top:14px">UPLOAD SOUND — drop mp3/ogg/wav; it lands in the bank above and in
+        <b>IndexedDB</b> (CM.8, same idea as HiVE WAR media store). Name becomes a dropdown option on every SFX field.
+        Exports still embed clips in the Forge JSON backup.</div>
+        <div class="row"><button id="cfSndAdd">＋ UPLOAD SOUND</button>
+          <span style="color:#7a9">${Object.keys(CM_AUD).length} uploaded · ${clipNames().length} total in bank</span></div>
         <table><tr><th>NAME</th><th>SIZE</th><th>VOLUME</th><th></th><th></th></tr>` +
         (Object.keys(CM_AUD).length ? '' : '<tr><td colspan="5" style="color:#567">nothing imported yet</td></tr>') +
-        Object.keys(CM_AUD).map(n => `<tr><td style="color:#9fe86f">${n}</td>
-          <td>${Math.round((CM_AUD[n].src.length*.75)/1024)} KB</td>
+        Object.keys(CM_AUD).map(n => { const src = (CM_AUD[n] && CM_AUD[n].src) || '';
+          const kb = src ? Math.round((src.length * .75) / 1024) : 'IDB';
+          return `<tr><td style="color:#9fe86f">${n}</td>
+          <td>${kb}${typeof kb === 'number' ? ' KB' : ''}</td>
           <td><input type="range" min="0" max="1" step="0.05" data-cfvol="${n}" value="${CM_AUD[n].vol==null?.55:CM_AUD[n].vol}" style="width:110px"></td>
           <td><button data-cfclip="${n}">▶</button></td>
-          <td><button class="warn" data-cfsnddel="${n}">✕</button></td></tr>`).join('') + '</table>';
+          <td><button class="warn" data-cfsnddel="${n}">✕</button></td></tr>`; }).join('') + '</table>';
     } else {
       h = `<div class="hint">Values live in this browser's localStorage. Export to keep a copy or move machines.
         Replaced art AND imported sounds are exported too, so a backup is fully self-contained (and can get large).</div>
@@ -2520,15 +2652,17 @@ cmApply();
       delete CM_AUD[n]; if (CEDIT.music.clip === n) CEDIT.music.clip = '';
       cmSaveAud(); cmSave(); cmApply(); draw(); });
     const musPrev = bd.querySelector('#cfMusPrev');
-    if (musPrev) musPrev.onclick = () => { if (CEDIT.music.clip) playClip(CEDIT.music.clip);
-      else alert('Synth dirge selected — it only runs on a live board. Close the Forge and start a level to hear it.'); };
+    if (musPrev) musPrev.onclick = () => { if (CEDIT.music.clip) {
+        if (!playClip(CEDIT.music.clip))
+          alert('Clip not loaded yet — wait a moment or pick another.');
+      } else alert('Synth dirge selected — it only runs on a live board. Close the Forge and start a level to hear it.'); };
     bd.querySelector('#cfSndAdd').onclick = () => {
       const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'audio/*';
       inp.onchange = () => { const f = inp.files[0]; if (!f) return;
-        // ~4 MB of base64 is already most of a 5 MB localStorage budget; refuse rather than corrupt the store.
+        // Blobs go to IndexedDB (CM.8); still warn on multi-MB files for export size.
         if (f.size > 3 * 1024 * 1024 && !confirm('That file is ' + Math.round(f.size/1024/1024*10)/10 +
-            ' MB. Browser storage is only about 5 MB total — importing it may fail or crowd out your art. Continue?')) return;
-        let name = (prompt('Name this clip (used in the SFX fields):',
+            ' MB. It will store in IndexedDB, but Forge JSON exports will get large. Continue?')) return;
+        let name = (prompt('Name this clip (appears in every SFX dropdown):',
                            f.name.replace(/\.[^.]+$/, '').replace(/[^a-z0-9_]/gi, '').slice(0, 20)) || '').trim();
         if (!name) return;
         if (CLIPS[name] && !CM_AUD[name]) return alert('"' + name + '" is a built-in clip name — pick another.');
