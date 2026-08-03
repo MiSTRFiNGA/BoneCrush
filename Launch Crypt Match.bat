@@ -1,9 +1,9 @@
 @echo off
-title CRYPT MATCH
+title SKULL CRUSH
 cd /d "%~dp0"
 echo.
 echo   ============================
-echo     CRYPT MATCH  -  launching
+echo     SKULL CRUSH  -  launching
 echo   ============================
 echo.
 set PORT=8761

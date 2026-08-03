@@ -1,4 +1,4 @@
-# Why this Crypt Match listing differs from the rejected one
+# Why this Skull Crush listing differs from the rejected one
 
 **Author:** Grok · **Date:** 2026-08-02 · **Row:** CM.7  
 **Action for Eric:** upload only — do **not** ask an agent to submit.
@@ -10,7 +10,7 @@
 | Item | Rejected listing |
 |---|---|
 | Portal | CrazyGames **Basic Launch** |
-| Public title | Crypt Match |
+| Public title | Skull Crush |
 | Scores | Desktop **4/15**, Mobile **6/15** (need ≥9) |
 | Death cause | **Quality KPIs** (playtime / D1 / conversion) — **not** zip size or file count |
 | Resubmit rule | CG does **not** allow patching a rejected Basic Launch title — needs a **new game entry** |
@@ -21,10 +21,10 @@ Zip was already tiny (~1.4 MB / 47 files). Size was never the problem.
 
 ## What is different now (this kit)
 
-1. **Fresh portal packages** rebuilt 2026-08-02 from `D:\Dev\CryptMatch`:
+1. **Fresh portal packages** rebuilt 2026-08-02 from `D:\Dev\SkullCrush`:
    - `dist/bonecrush-crazygames.zip` (~1.82 MB) — unzip and upload **extracted** playable for CG
    - `dist/bonecrush-poki.zip` (~1.82 MB) — Poki accepts zip upload
-2. **Internal zip names** still use `bonecrush-*` (stable build id). Public title in portal metadata is still **your call** (Crypt Match vs Relic Rush / etc. — see `RELAUNCH_KIT.md` §3).
+2. **Internal zip names** still use `bonecrush-*` (stable build id). Public title in portal metadata is still **your call** (Skull Crush vs Relic Rush / etc. — see `RELAUNCH_KIT.md` §3).
 3. **Cover set checked** against common CG dimensions (2026-08-02):
 
 | File | Size | Typical CG slot |
@@ -46,5 +46,5 @@ Zip was already tiny (~1.4 MB / 47 files). Size was never the problem.
 ## Explicitly unchanged / still Eric
 
 - No agent will click Submit, create the CG listing, or change billing/store accounts.
-- Final **public title** if “Crypt Match” remains spent on CG.
+- Final **public title** if “Skull Crush” remains spent on CG.
 - KPI trial after Basic Launch (playtime 10+ min, D1 10%+, conversion 80%+ targets in kit docs).

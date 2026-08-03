@@ -60,7 +60,7 @@ CrazyGames or Poki player never sees a content editor. F2 and the 🐞 press-and
 - **Sprite editor** — clicking any piece or relic thumbnail in the Forge now opens it at 3× on a
   transparency checkerboard, with brush colour/size, erase, undo, clear, IMPORT PNG, SAVE LIVE,
   REVERT TO SHIPPED and DOWNLOAD PNG (download → drop into `assets/` → commit = permanent).
-  Ported from HiVE WAR's FORGE sprite tab, minus the animation-strip controls Crypt Match's
+  Ported from HiVE WAR's FORGE sprite tab, minus the animation-strip controls Skull Crush's
   single-image pieces don't need.
 - **Start screen** now offers CAMPAIGN / ENDLESS / DAILY under the big PLAY button. Previously the
   three modes were reachable only by starting a run and backing out through 🏠.

@@ -1,4 +1,4 @@
-# Google Play submission kit — Crypt Match
+# Google Play submission kit — Skull Crush
 
 **Author:** Grok · **Date:** 2026-07-30 · **Order #5 Job 2**  
 **Repo:** https://github.com/MiSTRFiNGA/BoneCrush  
@@ -91,12 +91,12 @@ Orientation primary: **portrait**. Genre: **Puzzle / Match-3**.
 ### Copy drafts
 
 **Short (≤80 chars):**  
-`Crypt Match: Puzzle / Match-3. Free, offline-capable, no account.`
+`Skull Crush: Puzzle / Match-3. Free, offline-capable, no account.`
 
 **Full:**
 
 ```
-Crypt Match is a free puzzle / match-3 game from Empire Games.
+Skull Crush is a free puzzle / match-3 game from Empire Games.
 
 • Instant play — no account required
 • Lightweight Android app (offline after install)

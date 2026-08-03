@@ -1,4 +1,4 @@
-# Eric — Crypt Match upload checklist (CM.7)
+# Eric — Skull Crush upload checklist (CM.7)
 
 **Do this when ready. Agents stop here.**
 
@@ -6,10 +6,10 @@
 
 | Platform | Artifact | How |
 |---|---|---|
-| **CrazyGames** | `D:\Dev\CryptMatch\dist\bonecrush-crazygames.zip` | Unzip → upload **folder contents** (CG rejects our zip as-is in past flow) |
-| **Poki** | `D:\Dev\CryptMatch\dist\bonecrush-poki.zip` | Upload zip |
+| **CrazyGames** | `D:\Dev\SkullCrush\dist\bonecrush-crazygames.zip` | Unzip → upload **folder contents** (CG rejects our zip as-is in past flow) |
+| **Poki** | `D:\Dev\SkullCrush\dist\bonecrush-poki.zip` | Upload zip |
 
-Rebuild anytime: `cd D:\Dev\CryptMatch && python build.py`
+Rebuild anytime: `cd D:\Dev\SkullCrush && python build.py`
 
 ## 2. Art & video (all under `store/`)
 

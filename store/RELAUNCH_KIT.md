@@ -1,8 +1,8 @@
-# Crypt Match — CrazyGames Relaunch Kit
+# Skull Crush — CrazyGames Relaunch Kit
 
 **Author:** Grok · **Date:** 2026-07-30  
 **Scope:** submission / metadata / infra only — **no `index.html` edits** (Claude owns game rebuild).  
-**Why new listing:** CG Basic Launch already rejected “Crypt Match”; a failed title **cannot be patched and resubmitted** — it must return as a **new game**.
+**Why new listing:** CG Basic Launch already rejected “Skull Crush”; a failed title **cannot be patched and resubmitted** — it must return as a **new game**.
 
 Sources: [CG Technical requirements](https://docs.crazygames.com/requirements/technical/), [Gameplay requirements](https://docs.crazygames.com/requirements/gameplay/), [Getting to first frame](https://docs.crazygames.com/resources/getting-to-the-first-frame/), FAQ submission flow.
 
@@ -49,7 +49,7 @@ Sources: [CG Technical requirements](https://docs.crazygames.com/requirements/te
 | ≤ **1 click** to gameplay | Cold-open into Level 1 (Claude rebuild) — no multi-screen wall |
 | Load quickly, no crashes | 1.5 MB helps; fire `gameplayStart` as soon as board is interactive |
 | Readable at 800×450 mobile iframe | UI scale check |
-| Original name / assets | **New title required** — old “Crypt Match” is spent |
+| Original name / assets | **New title required** — old “Skull Crush” is spent |
 | Cover art + trailer | Still required for portal (Eric assets) |
 
 ### Process reality (Eric)
@@ -92,13 +92,13 @@ After Claude lands campaign + cold-open, **re-run** `python build.py` and re-che
 
 ### Title candidates (old name is spent)
 
-1. **Crypt Match** — clear genre signal; short; store-safe.  
+1. **Skull Crush** — clear genre signal; short; store-safe.  
 2. **Relic Rush** — urgency + collectible fantasy; good for conversion copy.  
 3. **Graveyard Gems** — distinctive; match-3 readable.  
 4. **Bone Cabinet** — slightly weirder brand; fits art direction.  
 5. **Ossuary Puzzle** — premium/dark; may read slower for kids.
 
-**Recommendation:** ship as **Crypt Match** (or **Relic Rush** if Eric wants more action energy). Keep “Crypt Match” only as internal repo/folder name until rename is intentional.
+**Recommendation:** ship as **Skull Crush** (or **Relic Rush** if Eric wants more action energy). Keep “Skull Crush” only as internal repo/folder name until rename is intentional.
 
 ### Short description (≤ ~160–200 chars, portal blurb)
 
@@ -109,7 +109,7 @@ After Claude lands campaign + cold-open, **re-run** `python build.py` and re-che
 ```
 The crypt is open. The relics want out.
 
-Crypt Match is a dark match-3 built for quick sessions and deep campaigns:
+Skull Crush is a dark match-3 built for quick sessions and deep campaigns:
 • Cold-open into the first board — play in one tap
 • 40-level campaign with score, clear, drop, and crypt-tile goals
 • Specials unlock as you dig deeper (jars, bones, hands, voodoo)

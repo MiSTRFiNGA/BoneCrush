@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Crypt Match — the daily ossuary puzzle</title>
+<title>Skull Crush — the daily ossuary puzzle</title>
 <meta name="description" content="Match skulls and bones in the catacomb. Everyone on Earth gets the identical board today — top the score before midnight resets it.">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./assets/icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Crypt Match">
+<meta name="apple-mobile-web-app-title" content="Skull Crush">
 <meta name="theme-color" content="#2b1d12">
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
@@ -58,9 +58,9 @@
   #overlay { inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
              background:radial-gradient(ellipse at center, rgba(18,12,16,.6) 0%, rgba(6,4,7,.92) 100%);
              text-align:center; padding:20px; }
-  /* Title logo (Eric's painted banner). Renamed Bone Crush -> Crypt Match 2026-07-30; the art
+  /* Title logo (Eric's painted banner). Renamed Bone Crush -> Skull Crush 2026-07-30; the art
      asset itself still visually reads "BONE CRUSH" pending a repainted banner — alt text below
-     already says CRYPT MATCH for a11y/SEO. Master copy: art_src/title_logo.png
+     already says SKULL CRUSH for a11y/SEO. Master copy: art_src/title_logo.png
      (5230x768) — THIS is the game logo for the splash, store pages, adverts and promo art.
      assets/title_logo.jpg is the web-optimized copy. Subtle idle float/glow, readable at any width. */
   #overlay h1.logo { display:flex; align-items:center; justify-content:center;
@@ -174,7 +174,7 @@ window.PSDK = window.PSDK || { ready: Promise.resolve(), loaded(){}, start(){}, 
      (owner request 2026-07-30, reversing the earlier B1 cold-open); also appears after a daily run
      ends, where refreshMenu(true) swaps in the score/streak/share result block. -->
 <div class="ui hidden" id="overlay">
-  <h1 class="logo"><img src="assets/title_logo.jpg" alt="CRYPT MATCH — a grim match-3 adventure"></h1>
+  <h1 class="logo"><img src="assets/title_logo.jpg" alt="SKULL CRUSH — a grim match-3 adventure"></h1>
   <div class="tag">Match the remains. Everyone on Earth digs the <b>same catacomb board</b> today.</div>
   <div id="resultBlock" class="hidden"><div class="big" id="scoreLine"></div></div>
   <div class="stats">
@@ -200,7 +200,7 @@ window.PSDK = window.PSDK || { ready: Promise.resolve(), loaded(){}, start(){}, 
      The game always cold-opens straight into a live board (campaign frontier level for a fresh
      player, or their current level on return); this panel is purely for switching/pausing. -->
 <div class="ui hidden" id="modeSelect">
-  <h1 class="logo"><img src="assets/title_logo.jpg" alt="CRYPT MATCH"></h1>
+  <h1 class="logo"><img src="assets/title_logo.jpg" alt="SKULL CRUSH"></h1>
   <div class="tag" id="msTag">Switch your dig.</div>
   <div class="modeGrid">
     <button class="modeBtn hidden" id="btnResume">▶ RESUME<span class="modeSub">Back to where you left off</span></button>
@@ -237,7 +237,7 @@ window.PSDK = window.PSDK || { ready: Promise.resolve(), loaded(){}, start(){}, 
 </div>
 <script>
 "use strict";
-/* CRYPT MATCH (formerly Bone Crush) — daily-seeded match-3. No backend; same board worldwide per UTC day. */
+/* SKULL CRUSH (formerly Bone Crush) — daily-seeded match-3. No backend; same board worldwide per UTC day. */
 const N = 8, MOVES0 = 30;
 /* TYPES = how many normal piece types are in play. Shipped default 8 (asset drop 02 added
    cat/cauldron/heart); the Crypt Forge PIECES tab can add/remove types live, so this is a `let`
@@ -301,7 +301,7 @@ const store = {
   // NOTE: 'bonecrush_' prefix + the bc_* keys below are legacy-but-load-bearing localStorage
   // keys from the original "Bone Crush" name. Renaming them would wipe every existing player's
   // saved progress/streak, so they are kept exactly as-is despite the 2026-07-30 rename to
-  // "Crypt Match" — see BoneCrush -> Crypt Match rename notes.
+  // "Skull Crush" — see BoneCrush -> Skull Crush rename notes.
   get k(){ return 'bonecrush_' + utcDayKey(); },
   load(){ return { all:+localStorage.bc_all||0, today:+localStorage[this.k]||0 }; },
   save(sc){ const dk = utcDayKey();
@@ -663,11 +663,11 @@ const SP_SPRITES = SPECIAL_DEFS.map(d => { const im = new Image(); im.onerror = 
   im.src = 'assets/' + d.file; return im; });
 /* ── CRYPT FORGE STORAGE ── declared up here, next to the arrays they override, because the info
    panel and the sprite loaders read them long before the Forge UI itself is defined further down. */
-const CM_KEY = 'cryptmatch_forge_v1', CM_ART_KEY = 'cryptmatch_forge_art_v1',
-      CM_AUD_KEY = 'cryptmatch_forge_audio_v1';
+const CM_KEY = 'skullcrush_forge_v1', CM_ART_KEY = 'skullcrush_forge_art_v1',
+      CM_AUD_KEY = 'skullcrush_forge_audio_v1';
 /* CM.8 — binary SFX lives in IndexedDB (HW media-store pattern). localStorage holds only a
    thin name→meta index after migration; data URLs no longer sit in the 5 MB quota. */
-const CM_AUD_DB = 'cryptmatch_forge_media_v1', CM_AUD_STORE = 'audio';
+const CM_AUD_DB = 'skullcrush_forge_media_v1', CM_AUD_STORE = 'audio';
 let CM_ART = {}; try { CM_ART = JSON.parse(localStorage.getItem(CM_ART_KEY) || '{}'); } catch(e){}
 /* Imported audio: { clipName: {src:'data:audio/…', vol:0.5} }. Registered into CLIPS by cmApply,
    which makes every imported sound usable anywhere a clip name is accepted — piece match SFX,
@@ -1489,7 +1489,7 @@ function bugReport(){
   const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'cryptmatch_report_' + Date.now() + '.json';
+  a.download = 'skullcrush_report_' + Date.now() + '.json';
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
   showToast('🐞 Report downloaded');
@@ -1621,7 +1621,7 @@ function beginGame(){
 }
 ['click','touchend'].forEach(ev => btnGo.addEventListener(ev, e => { e.stopPropagation(); e.preventDefault(); beginGame(); }));
 btnShare.onclick = async e => { e.stopPropagation();
-  const txt = `💀 I crushed ${score} on today's Crypt Match board — everyone digs the SAME catacomb today. Beat me: ${location.href.split('?')[0]}`;
+  const txt = `💀 I crushed ${score} on today's Skull Crush board — everyone digs the SAME catacomb today. Beat me: ${location.href.split('?')[0]}`;
   try { if (navigator.share) await navigator.share({ text: txt });
         else { await navigator.clipboard.writeText(txt); showToast('Challenge copied'); } } catch(err){}
 };
@@ -2299,7 +2299,7 @@ cmAudHydrate().then(() => { try { cmApply(); } catch(_){} }).catch(() => {});
      Clicking any relic thumbnail opens it here: the same art at 3× the board size, paintable with
      a brush/eraser, replaceable from a PNG, revertible to the shipped asset, and downloadable so a
      drawing can be baked back into assets/ permanently. Ported from HiVE WAR's FORGE sprite tab and
-     cut down to Crypt Match's shape — pieces here are single 128px images, not animation strips, so
+     cut down to Skull Crush's shape — pieces here are single 128px images, not animation strips, so
      there are no frame controls.
      `work` is the editing canvas; nothing touches the game until SAVE LIVE writes it into CM_ART. */
   const CM_CELL = 128;                       // the size drawPiece() actually renders
@@ -2419,11 +2419,11 @@ cmAudHydrate().then(() => { try { cmApply(); } catch(_){} }).catch(() => {});
         <span style="color:#567">seam lines drawn on preview</span></div>
       <canvas id="cfPaint" width="384" height="384" style="border:1px solid #2c5c3a;border-radius:4px;cursor:crosshair;touch-action:none"></canvas>
       <div class="row"><button id="cfImp2">⇧ IMPORT PNG</button>
-        <button id="cfGifOff" disabled title="Crypt Match pieces are single images">⇧ GIF (disabled)</button>
+        <button id="cfGifOff" disabled title="Skull Crush pieces are single images">⇧ GIF (disabled)</button>
         <button id="cfSpSave">💾 SAVE LIVE</button>
         <button id="cfDl">⇩ DOWNLOAD PNG</button>
         ${has ? '<button id="cfRev" class="warn">REVERT TO SHIPPED</button>' : ''}</div>
-      <div class="hint" id="cfGifHint" style="color:#c9a86a">Crypt Match pieces are single images — animated import isn't supported.</div>
+      <div class="hint" id="cfGifHint" style="color:#c9a86a">Skull Crush pieces are single images — animated import isn't supported.</div>
       <div class="hint" id="cfNote"></div>`;
     bd.querySelector('#cfSpBack').onclick = () => { spriteSel = null; appliedRotation = 0; draw(); };
     bd.querySelector('#cfCol').oninput = e => { brush.col = e.target.value; brush.erase = false;
@@ -2463,7 +2463,7 @@ cmAudHydrate().then(() => { try { cmApply(); } catch(_){} }).catch(() => {});
       a.href = work.toDataURL('image/png'); a.download = spriteSel.key + '_' + spriteSel.label.replace(/\W+/g,'_') + '.png'; a.click(); };
     bd.querySelector('#cfImp2').onclick = () => importArt(spriteSel.key, () => { appliedRotation = 0; spriteOpen(spriteSel.key); });
     bd.querySelector('#cfGifOff').onclick = () =>
-      showForgeNote('Crypt Match pieces are single images — animated import isn\'t supported.');
+      showForgeNote('Skull Crush pieces are single images — animated import isn\'t supported.');
     const rev = bd.querySelector('#cfRev');
     if (rev) rev.onclick = () => { if (!confirm('Drop the Forge art and go back to the shipped PNG?')) return;
       clearArt(spriteSel.key); appliedRotation = 0; tilePreview = { x: 1, y: 1 }; spriteOpen(spriteSel.key); };
@@ -2569,7 +2569,7 @@ cmAudHydrate().then(() => { try { cmApply(); } catch(_){} }).catch(() => {});
     if (tab===4){
       bd.querySelector('#cfExp').onclick = () => { const a = document.createElement('a');
         a.href = 'data:application/json,' + encodeURIComponent(JSON.stringify({values:CEDIT, art:CM_ART, audio:CM_AUD}, null, 1));
-        a.download = 'cryptmatch_forge_backup.json'; a.click(); };
+        a.download = 'skullcrush_forge_backup.json'; a.click(); };
       const imp = bd.querySelector('#cfImp');
       bd.querySelector('#cfImpB').onclick = () => { imp.value = ''; imp.click(); };
       imp.onchange = () => { const f = imp.files[0]; if (!f) return; const rd = new FileReader();

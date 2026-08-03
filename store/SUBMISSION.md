@@ -1,8 +1,8 @@
-# 📦 Crypt Match — NEW LISTING store submission pack (copy-paste ready)
+# 📦 Skull Crush — NEW LISTING store submission pack (copy-paste ready)
 
 **Author:** Grok · **Date:** 2026-07-30 (Order #3 Job 4)  
 **Scope:** new-listing metadata / art-spec / checklist only. **Do NOT open or edit `index.html`.**  
-**Why new listing:** CrazyGames Basic Launch already rejected “Crypt Match” (desktop 4/15, mobile 6/15; need ≥9).  
+**Why new listing:** CrazyGames Basic Launch already rejected “Skull Crush” (desktop 4/15, mobile 6/15; need ≥9).  
 **Hard CG rule:** a failed title **cannot be patched and resubmitted** — it must return as a **new game** with a new listing. The old listing is spent.
 
 Sources: campaign curve in `campaign_curve_40.json`; size audit in `store/RELAUNCH_KIT.md`; Skull Drift format mirror.
@@ -19,7 +19,7 @@ Sources: campaign curve in `campaign_curve_40.json`; size audit in `store/RELAUN
 Build (after Claude’s campaign/cold-open land):
 
 ```bat
-cd /d D:\Dev\CryptMatch
+cd /d D:\Dev\SkullCrush
 python build.py
 ```
 
@@ -29,17 +29,17 @@ Prior measurement (2026-07-30, pre-final content): CG zip **1.44 MB / 47 files**
 
 ## New title treatment / name candidates
 
-Old name **“Crypt Match” is spent** on CG. Listing must read as a **genuinely new game**, not “Crypt Match 2”.
+Old name **“Skull Crush” is spent** on CG. Listing must read as a **genuinely new game**, not “Skull Crush 2”.
 
 | # | Candidate | Why |
 |---|-----------|-----|
-| 1 | **Crypt Match** | Clear match-3 genre signal; short; store-safe. **Recommended default.** |
+| 1 | **Skull Crush** | Clear match-3 genre signal; short; store-safe. **Recommended default.** |
 | 2 | **Relic Rush** | Urgency + collectible fantasy; stronger “action energy.” |
 | 3 | **Graveyard Gems** | Distinctive; match-3 readable at a glance. |
 | 4 | **Bone Cabinet** | Weird-brand fit for art direction; less SEO-obvious. |
 | 5 | **Ossuary Puzzle** | Premium/dark; may read slower for younger players. |
 
-**Internal repo folder** renamed to `D:\Dev\CryptMatch` (2026-08-01). GitHub remote may still be `BoneCrush`.  
+**Internal repo folder** renamed to `D:\Dev\SkullCrush` (2026-08-01). GitHub remote may still be `BoneCrush`.  
 **Logo lockup:** new wordmark only — do **not** reuse the rejected listing’s exact title treatment.
 
 ---
@@ -57,7 +57,7 @@ Match cursed relics. Clear the crypt. Dig forever.
 ```
 The crypt is open. The relics want out.
 
-Crypt Match is a dark match-3 built for quick sessions and deep campaigns:
+Skull Crush is a dark match-3 built for quick sessions and deep campaigns:
 
 • Cold-open into the first board — play in one tap
 • 40-level campaign with score, clear, drop, and crypt-tile goals
@@ -70,7 +70,7 @@ No downloads. No accounts required to start. Works on desktop and mobile browser
 Tips: chain matches for multipliers, save specials for packed boards, and chase three-star clears to open chests.
 ```
 
-*(If Eric picks another title, replace “Crypt Match” in the first body sentence only; keep feature bullets.)*
+*(If Eric picks another title, replace “Skull Crush” in the first body sentence only; keep feature bullets.)*
 
 ## Controls text
 
@@ -115,7 +115,7 @@ Tips: chain matches for multipliers, save specials for packed boards, and chase 
 
 **Optional:** `cover_4x3.png` 800×600 · `icon_512.png` · landscape + portrait **15s** H.264 **no-audio** preview (hook match → special → campaign goal → end card with **new title**).
 
-**Rules:** Do not reuse rejected “Crypt Match” lockup. No stolen IP. Safe margin ~5% from edges.
+**Rules:** Do not reuse rejected “Skull Crush” lockup. No stolen IP. Safe margin ~5% from edges.
 
 ---
 
@@ -123,7 +123,7 @@ Tips: chain matches for multipliers, save specials for packed boards, and chase 
 
 ### Process
 
-- [ ] Create a **new** game in CG developer portal (do **not** patch the failed Crypt Match listing)
+- [ ] Create a **new** game in CG developer portal (do **not** patch the failed Skull Crush listing)
 - [ ] Eric picks final title from candidates above
 - [ ] Claude cold-open + 40-level curve + progression confirmed in playable build
 - [ ] `python build.py` fresh artifacts
