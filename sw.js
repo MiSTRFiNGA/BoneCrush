@@ -4,7 +4,7 @@
 // refresh of the shell on the next visit.
 // Cache name bumped to skullcrush-shell-v2 for the 2026-07-30 rename — old bonecrush-shell-v1
 // cache is dropped automatically by the activate handler below (keys().filter(k !== CACHE_NAME)).
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const CACHE_NAME = `skullcrush-shell-${CACHE_VERSION}`;
 const PRECACHE_URLS = ['./', './index.html', './manifest.webmanifest'];
 
