@@ -382,7 +382,7 @@ LEVELS.forEach((L, i) => {
    matched back to a commit. Numbering rule: 0.0.X = alpha, 0.X.X = beta, X.X.X = full release.
    Demoted 1.3.0 -> 0.3.0 because the portal REJECTED this build — it is not a full release.
    Bump sw.js CACHE_VERSION whenever this changes or the service worker serves the old build. */
-const GAME_VERSION = '0.3.0';
+const GAME_VERSION = '0.3.1';
 const SAVE_KEY = 'bc_save_v1', SAVE_VERSION = 2;
 /* v2 (Phase B2 — RETENTION, campaign_curve_40.json retention_economy block) adds:
    login (daily-login streak, separate from the legacy bc_streak/bc_lastday daily-board streak —
@@ -2226,23 +2226,30 @@ cmApply();
 cmAudHydrate().then(() => { try { cmApply(); } catch(_){} }).catch(() => {});
 (function CRYPTFORGE(){
   const st = document.createElement('style');
-  st.textContent = `#cf{position:fixed;inset:5% 3%;background:rgba(8,6,14,.97);border:1px solid #7fc76f;border-radius:8px;
-    z-index:9999;display:none;flex-direction:column;font:12px 'Segoe UI',sans-serif;color:#cfe;overflow:hidden}
-  #cf.on{display:flex} #cf h3{margin:0;padding:8px 12px;background:#12331a;color:#9fe86f;letter-spacing:2px;font-size:13px}
-  #cf .tabs{display:flex;gap:2px;padding:6px 8px;background:#0d1a10;flex-wrap:wrap}
+  st.textContent = `#cf{position:fixed;left:24px;top:24px;width:min(720px,92vw);height:82vh;min-width:320px;min-height:280px;
+    resize:both;overflow:hidden;display:none;flex-direction:column;background:rgba(8,6,14,.97);border:1px solid #7fc76f;
+    border-radius:8px;z-index:9999;font:12px 'Segoe UI',sans-serif;color:#cfe;box-shadow:0 16px 60px #000c}
+  #cf.on{display:flex}
+  #cf h3{margin:0;padding:8px 12px;background:#12331a;color:#9fe86f;letter-spacing:2px;font-size:13px;cursor:move;
+    user-select:none;flex-shrink:0;position:relative}
+  #cf .tabs{display:flex;gap:2px;padding:6px 8px;background:#0d1a10;flex-wrap:wrap;flex-shrink:0}
   #cf .tabs div{padding:5px 10px;background:#16241a;cursor:pointer;border-radius:3px;letter-spacing:1px}
   #cf .tabs div.on{background:#7fc76f;color:#04140a;font-weight:700}
-  #cf .bd{flex:1;overflow:auto;padding:10px 12px}
+  #cf .bd{flex:1;overflow:auto;padding:10px 12px;min-height:0}
   #cf table{border-collapse:collapse;width:100%} #cf th,#cf td{border-bottom:1px solid #1d3322;padding:3px 5px;text-align:left}
   #cf th{color:#9fe86f;font-size:10px;letter-spacing:1px}
   #cf input,#cf select{background:#0c1710;border:1px solid #2c5c3a;color:#dfe;border-radius:3px;padding:2px 4px;font:12px inherit}
   #cf button{background:#16241a;border:1px solid #2c5c3a;color:#9fe86f;border-radius:3px;padding:4px 9px;cursor:pointer;font:12px inherit}
   #cf button.warn{border-color:#a33;color:#f88} #cf .hint{color:#7a9;font-size:11px;margin-bottom:8px;line-height:1.45}
   #cf .row{display:flex;gap:8px;align-items:center;margin:6px 0;flex-wrap:wrap}
-  #cf .x{position:absolute;right:8px;top:6px;cursor:pointer;color:#9fe86f;font-size:16px}`;
+  #cf .x{position:absolute;right:8px;top:6px;cursor:pointer;color:#9fe86f;font-size:16px}
+  #cf label{position:relative;display:inline-flex;align-items:center;gap:4px}
+  #cf label[data-tip]:hover::after{content:attr(data-tip);position:absolute;z-index:80;left:0;top:100%;margin-top:4px;
+    max-width:280px;white-space:normal;background:#0a1a0e;border:1px solid #7fc76f;color:#e8ffe0;padding:8px 10px;
+    border-radius:6px;font:11px 'Segoe UI',sans-serif;line-height:1.35;box-shadow:0 8px 24px #000a;pointer-events:none}`;
   document.head.appendChild(st);
   const w = document.createElement('div'); w.id = 'cf';
-  w.innerHTML = `<h3>⚱ CRYPT FORGE — live content editor <span class="x" id="cfX">✕</span></h3>
+  w.innerHTML = `<h3>⚱ CRYPT FORGE — live content editor <small style="opacity:.55;font-weight:500;letter-spacing:1px;margin-left:6px">v${GAME_VERSION}</small> <span class="x" id="cfX">✕</span></h3>
     <div class="tabs" id="cfT"></div><div class="bd" id="cfB"></div>`;
   document.body.appendChild(w);
   const bd = w.querySelector('#cfB'), tabsEl = w.querySelector('#cfT');
@@ -2250,6 +2257,23 @@ cmAudHydrate().then(() => { try { cmApply(); } catch(_){} }).catch(() => {});
   TABS.forEach((t,i)=>{ const d=document.createElement('div'); d.textContent=t;
     d.onclick=()=>{ tab=i; draw(); }; tabsEl.appendChild(d); });
   w.querySelector('#cfX').onclick = () => w.classList.remove('on');
+  // Header drag (HiveSwarm forge head pattern) — skip the close button.
+  (function(){ const head = w.querySelector('h3'); let sx, sy, ox, oy, drag = false;
+    head.addEventListener('pointerdown', e => {
+      if (e.target.classList.contains('x') || e.target.id === 'cfX') return;
+      drag = true; sx = e.clientX; sy = e.clientY;
+      const r = w.getBoundingClientRect(); ox = r.left; oy = r.top;
+      head.setPointerCapture(e.pointerId);
+    });
+    head.addEventListener('pointermove', e => {
+      if (!drag) return;
+      w.style.left = Math.max(0, ox + e.clientX - sx) + 'px';
+      w.style.top = Math.max(0, oy + e.clientY - sy) + 'px';
+      w.style.right = 'auto'; w.style.bottom = 'auto';
+    });
+    head.addEventListener('pointerup', () => { drag = false; });
+    head.addEventListener('pointercancel', () => { drag = false; });
+  })();
   // Recomputed per draw — the clip bank grows as sounds are imported on the AUDIO tab.
   const clipNames = () => Object.keys(CLIPS).sort();
   const clipList = () => clipNames().join(', ');
@@ -2290,6 +2314,9 @@ cmAudHydrate().then(() => { try { cmApply(); } catch(_){} }).catch(() => {});
     cmSave(); cmApply();
   });
   const m0 = s => String(s == null ? '' : s).replace(/"/g, '&quot;');   // safe in a value="…" attribute
+  // Hover tip attr for forge labels — CSS only (#cf label[data-tip]:hover::after); never use title=.
+  const fieldsTip = t => t ? ` data-tip="${m0(t)}"` : '';
+  const tipLabel = (tip, inner) => `<label${fieldsTip(tip)}>${inner}</label>`;
   function art(kind, i, cur){   // thumbnail that opens a file picker to replace that sprite
     const k = kind + i, src = CM_ART[k] || (cur ? 'assets/' + cur : '');
     // Added relic with no art yet: an empty <img> renders as a broken-image icon, so show a
@@ -2488,9 +2515,12 @@ cmAudHydrate().then(() => { try { cmApply(); } catch(_){} }).catch(() => {});
         <br>Available clips: <b>${clipList()}</b></div>
         <table><tr><th>ART</th><th>PIECE</th><th>VALUE</th><th>COLOUR</th><th>MATCH SFX</th><th></th></tr>`;
       CEDIT.pieces.forEach((p,i)=>{ h += `<tr><td>${art('p',i,SPRITE_FILES[i])}</td>
-        <td><input data-cp="pieces.${i}.name" value="${p.name}" style="width:110px"></td>
-        <td><input type="number" data-cp="pieces.${i}.value" value="${p.value}" style="width:56px"></td>
-        <td><input type="color" data-cp="pieces.${i}.color" value="${p.color||'#c9a86a'}" style="width:34px;height:22px;padding:0;border:none"></td>
+        <td>${tipLabel('Display name on the board and in UI.',
+          `<input data-cp="pieces.${i}.name" value="${p.name}" style="width:110px">`)}</td>
+        <td>${tipLabel('Base points for one matched piece. Chain multipliers apply on top.',
+          `<input type="number" data-cp="pieces.${i}.value" value="${p.value}" style="width:56px">`)}</td>
+        <td>${tipLabel('Shatter-particle tint and vector fallback colour when art is missing.',
+          `<input type="color" data-cp="pieces.${i}.color" value="${p.color||'#c9a86a'}" style="width:34px;height:22px;padding:0;border:none">`)}</td>
         <td>${sfxSelect('pieces.'+i+'.sfx', p.sfx, true)}</td>
         <td>${i >= CM_BASE_TYPES && CEDIT.pieces.length > 4
               ? `<button class="warn" data-cfdel="${i}" title="delete this added relic">✕</button>`
@@ -2504,11 +2534,15 @@ cmAudHydrate().then(() => { try { cmApply(); } catch(_){} }).catch(() => {});
         <table><tr><th>ART</th><th>RELIC</th><th>GLOW</th><th>DESCRIPTION</th><th>SFX</th><th>UNLOCK LVL</th></tr>`;
       CEDIT.specials.forEach((s,i)=>{ const id = SPECIAL_DEFS[i].id;
         h += `<tr><td>${art('s',i,SPECIAL_DEFS[i].file)}</td>
-        <td><input data-cp="specials.${i}.name" value="${s.name}" style="width:100px"></td>
-        <td><input type="color" data-cp="specials.${i}.glow" value="${s.glow}" style="width:34px;height:22px;padding:0;border:none"></td>
-        <td><input data-cp="specials.${i}.label" value="${s.label}" style="width:180px"></td>
+        <td>${tipLabel('Special relic display name.',
+          `<input data-cp="specials.${i}.name" value="${s.name}" style="width:100px">`)}</td>
+        <td>${tipLabel('Glow / aura colour when this special is on the board.',
+          `<input type="color" data-cp="specials.${i}.glow" value="${s.glow}" style="width:34px;height:22px;padding:0;border:none">`)}</td>
+        <td>${tipLabel('Short blurb shown in the info panel (effect itself is hardcoded).',
+          `<input data-cp="specials.${i}.label" value="${s.label}" style="width:180px">`)}</td>
         <td>${sfxSelect('specials.'+i+'.sfx', s.sfx, true)}</td>
-        <td><input type="number" data-cfu="${id}" value="${CEDIT.unlocks[id]!==undefined?CEDIT.unlocks[id]:''}" placeholder="—" style="width:52px"></td></tr>`; });
+        <td>${tipLabel('Campaign level that unlocks this special. Blank = always available.',
+          `<input type="number" data-cfu="${id}" value="${CEDIT.unlocks[id]!==undefined?CEDIT.unlocks[id]:''}" placeholder="—" style="width:52px">`)}</td></tr>`; });
       h += '</table>';
     } else if (tab===2){
       h = `<div class="hint">Campaign curve. TARGET only applies to score levels (others are collect/drop/tile counts, shown greyed).
@@ -2516,8 +2550,10 @@ cmAudHydrate().then(() => { try { cmApply(); } catch(_){} }).catch(() => {});
         <table><tr><th>LVL</th><th>OBJECTIVE</th><th>TARGET</th><th>MOVES</th></tr>`;
       CEDIT.levels.forEach((L,i)=>{ const T = LEVELS[i], isScore = T.objective === 'score';
         h += `<tr><td>${i+1}</td><td style="color:#7fc76f">${T.objective}${isScore?'':' ×'+(T.count||0)}</td>
-        <td>${isScore?`<input type="number" data-cp="levels.${i}.target" value="${L.target}" style="width:70px">`:'<span style="color:#567">n/a</span>'}</td>
-        <td><input type="number" data-cp="levels.${i}.moves" value="${L.moves}" style="width:52px"></td></tr>`; });
+        <td>${isScore?tipLabel('Score needed for 1-star pass (also updates stars[0]). Live after reopen.',
+          `<input type="number" data-cp="levels.${i}.target" value="${L.target}" style="width:70px">`):'<span style="color:#567">n/a</span>'}</td>
+        <td>${tipLabel('Move budget for this campaign level.',
+          `<input type="number" data-cp="levels.${i}.moves" value="${L.moves}" style="width:52px">`)}</td></tr>`; });
       h += '</table>';
     } else if (tab===3){
       const m = CEDIT.music;
@@ -2541,12 +2577,16 @@ cmAudHydrate().then(() => { try { cmApply(); } catch(_){} }).catch(() => {});
         <div class="hint" style="margin-top:14px">GAMEPLAY MUSIC — plays while a board is live, stops on the menus, and has its
         own 🎵 mute button in game (separate from 🔊). Pick any bank track (★ = uploaded), or leave it on the built-in synth
         dirge. TEMPO and KEY only affect the synth.</div>
-        <div class="row"><b style="color:#9fe86f">TRACK</b><select data-cp="music.clip">${musOpts}</select>
+        <div class="row">${tipLabel('Bank track while a board is live. Empty = built-in synth dirge.',
+          `<b style="color:#9fe86f">TRACK</b><select data-cp="music.clip">${musOpts}</select>`)}
           <button id="cfMusPrev">▶ TEST</button><span style="color:#7a9">(clip preview; synth only on a live board)</span></div>
-        <div class="row"><b style="color:#9fe86f">VOLUME</b><input type="range" min="0" max="1" step="0.05"
-            data-cp="music.volume" value="${m.volume}" style="width:160px"><span>${Math.round(m.volume*100)}%</span></div>
-        <div class="row"><b style="color:#9fe86f">TEMPO</b><input type="number" data-cp="music.bpm" value="${m.bpm}" style="width:60px"> BPM
-          <b style="color:#9fe86f;margin-left:12px">KEY</b><input type="number" data-cp="music.root" value="${m.root}" style="width:60px"> Hz root</div>
+        <div class="row">${tipLabel('Music volume (0–100%). Separate from the SFX mute.',
+          `<b style="color:#9fe86f">VOLUME</b><input type="range" min="0" max="1" step="0.05"
+            data-cp="music.volume" value="${m.volume}" style="width:160px"><span>${Math.round(m.volume*100)}%</span>`)}</div>
+        <div class="row">${tipLabel('Synth dirge tempo in BPM (ignored when a bank track is selected).',
+          `<b style="color:#9fe86f">TEMPO</b><input type="number" data-cp="music.bpm" value="${m.bpm}" style="width:60px"> BPM`)}
+          ${tipLabel('Synth root frequency in Hz (ignored when a bank track is selected).',
+          `<b style="color:#9fe86f;margin-left:12px">KEY</b><input type="number" data-cp="music.root" value="${m.root}" style="width:60px"> Hz root`)}</div>
 
         <div class="hint" style="margin-top:14px">UPLOAD SOUND — drop mp3/ogg/wav; it lands in the bank above and in
         <b>IndexedDB</b> (CM.8, same idea as HiVE WAR media store). Name becomes a dropdown option on every SFX field.
